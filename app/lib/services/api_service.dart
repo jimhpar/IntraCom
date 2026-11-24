@@ -160,6 +160,17 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> adminUpdateUserNumber(String userId, String fullNumber) async {
+    try {
+      final res = await _dio.put('/api/v1/admin/users/$userId/number', data: {
+        'full_number': fullNumber,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> getAdminHubRequests() async {
     try {
       final res = await _dio.get('/api/v1/admin/hub-requests');

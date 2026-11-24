@@ -53,9 +53,9 @@ class _DialerScreenState extends State<DialerScreen> {
     );
   }
 
-  Widget _buildDialKey(String digit, String subtext, {VoidCallback? onLongPress}) {
+  Widget _buildDialKey(String digit, String subtext, {VoidCallback? onTap, VoidCallback? onLongPress}) {
     return GestureDetector(
-      onTap: () => _onDigitPressed(digit),
+      onTap: onTap ?? () => _onDigitPressed(digit),
       onLongPress: onLongPress,
       child: Container(
         width: 78,
@@ -181,13 +181,16 @@ class _DialerScreenState extends State<DialerScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildDialKey('*', ''),
-                      _buildDialKey('0', '+', onLongPress: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _enteredNumber += '+';
-                        });
-                      }),
+                      _buildDialKey(
+                        '+',
+                        '*',
+                        onTap: () => _onDigitPressed('+'),
+                        onLongPress: () {
+                          HapticFeedback.heavyImpact();
+                          _onDigitPressed('*');
+                        },
+                      ),
+                      _buildDialKey('0', ''),
                       _buildDialKey('#', ''),
                     ],
                   ),

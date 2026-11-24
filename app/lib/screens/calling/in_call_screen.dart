@@ -7,12 +7,16 @@ class InCallScreen extends StatefulWidget {
   final String targetNumber;
   final String targetName;
   final bool isVideo;
+  final bool isIncoming;
+  final bool initialConnected;
 
   const InCallScreen({
     super.key,
     required this.targetNumber,
     this.targetName = 'IntraCom User',
     this.isVideo = false,
+    this.isIncoming = false,
+    this.initialConnected = false,
   });
 
   @override
@@ -23,35 +27,51 @@ class _InCallScreenState extends State<InCallScreen> {
   bool _isMuted = false;
   bool _isSpeakerOn = false;
   bool _isVideoCamOn = false;
-  bool _isConnected = false;
+  late bool _isConnected;
 
   Timer? _callTimer;
   int _callSeconds = 0;
+  StreamSubscription? _signalingSub;
 
   @override
   void initState() {
     super.initState();
     _isVideoCamOn = widget.isVideo;
+    _isConnected = widget.initialConnected;
 
-    // Simulate connection establishing via signaling
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isConnected = true;
-        });
-        _startTimer();
+    if (_isConnected) {
+      _startTimer();
+    } else {
+      // Send real call offer via signaling service
+      SignalingService.instance.sendCallOffer(
+        widget.targetNumber,
+        {'type': 'offer', 'sdp': 'webrtc_pion_sdp'},
+        callType: widget.isVideo ? 'video' : 'audio',
+      );
+    }
+
+    // Listen for peer responses (Call Accepted or Hung Up)
+    _signalingSub = SignalingService.instance.messageStream.listen((msg) {
+      if (!mounted) return;
+
+      final type = msg['type'];
+      final from = msg['from'];
+
+      if (type == 'call_answer' && (from == widget.targetNumber || from != null)) {
+        if (!_isConnected) {
+          setState(() {
+            _isConnected = true;
+          });
+          _startTimer();
+        }
+      } else if (type == 'call_hangup' && (from == widget.targetNumber || from != null)) {
+        _onPeerHangup();
       }
     });
-
-    // Send call offer via real signaling service
-    SignalingService.instance.sendCallOffer(
-      widget.targetNumber,
-      {'type': 'offer', 'sdp': 'mock_webrtc_sdp'},
-      callType: widget.isVideo ? 'video' : 'audio',
-    );
   }
 
   void _startTimer() {
+    _callTimer?.cancel();
     _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() => _callSeconds++);
@@ -59,10 +79,22 @@ class _InCallScreenState extends State<InCallScreen> {
     });
   }
 
+  void _onPeerHangup() {
+    _callTimer?.cancel();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Call ended'), duration: Duration(seconds: 2)),
+      );
+      Navigator.pop(context);
+    }
+  }
+
   void _endCall() {
     _callTimer?.cancel();
     SignalingService.instance.sendHangup(widget.targetNumber);
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   String _formatDuration(int seconds) {
@@ -74,6 +106,7 @@ class _InCallScreenState extends State<InCallScreen> {
   @override
   void dispose() {
     _callTimer?.cancel();
+    _signalingSub?.cancel();
     super.dispose();
   }
 
@@ -104,10 +137,10 @@ class _InCallScreenState extends State<InCallScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              _isConnected ? _formatDuration(_callSeconds) : 'Calling & Connecting...',
+              _isConnected ? _formatDuration(_callSeconds) : 'Ringing & Waiting for Answer...',
               style: TextStyle(
                 fontSize: 15,
-                color: _isConnected ? Colors.white70 : Colors.white38,
+                color: _isConnected ? Colors.white70 : Colors.amberAccent,
                 fontWeight: _isConnected ? FontWeight.w500 : FontWeight.normal,
               ),
             ),
@@ -159,38 +192,68 @@ class _InCallScreenState extends State<InCallScreen> {
                         onTap: () => setState(() => _isMuted = !_isMuted),
                       ),
                       _buildCallActionButton(
-                        icon: Icons.volume_up,
+                        icon: Icons.dialpad,
+                        label: 'Keypad',
+                        isActive: false,
+                        onTap: () {},
+                      ),
+                      _buildCallActionButton(
+                        icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
                         label: 'Speaker',
                         isActive: _isSpeakerOn,
                         onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
                       _buildCallActionButton(
                         icon: _isVideoCamOn ? Icons.videocam : Icons.videocam_off,
                         label: 'Video',
                         isActive: _isVideoCamOn,
                         onTap: () => setState(() => _isVideoCamOn = !_isVideoCamOn),
                       ),
+                      _buildCallActionButton(
+                        icon: Icons.bluetooth,
+                        label: 'Audio',
+                        isActive: false,
+                        onTap: () {},
+                      ),
+                      _buildCallActionButton(
+                        icon: Icons.chat_bubble_outline,
+                        label: 'Chat',
+                        isActive: false,
+                        onTap: () => Navigator.pop(context),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 36),
-
-                  // End Call Button (Big Red Button)
-                  GestureDetector(
-                    onTap: _endCall,
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: const BoxDecoration(
-                        color: IosTheme.destructiveRed,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.call_end, color: Colors.white, size: 36),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
             ),
+
+            const SizedBox(height: 36),
+
+            // End Call Button (Big Red Circle)
+            GestureDetector(
+              onTap: _endCall,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: Colors.redAccent,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.call_end,
+                  size: 36,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -208,16 +271,23 @@ class _InCallScreenState extends State<InCallScreen> {
       child: Column(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
-              color: isActive ? Colors.white : Colors.white12,
+              color: isActive ? Colors.white : const Color(0xFF2C2C2E),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: isActive ? Colors.black : Colors.white, size: 28),
+            child: Icon(
+              icon,
+              size: 28,
+              color: isActive ? Colors.black : Colors.white,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.white70),
+          ),
         ],
       ),
     );

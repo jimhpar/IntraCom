@@ -102,6 +102,66 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     }
   }
 
+  void _showCustomizeNumberDialog(String userId, String currentNum, String userName) {
+    final numCtrl = TextEditingController(text: currentNum);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IosTheme.cardDark,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Customize Number for $userName', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter custom/VIP IntraCom calling number (e.g. +1-7777777 or +2-1111111):',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: numCtrl,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1),
+              decoration: const InputDecoration(
+                labelText: 'IntraCom Number',
+                prefixIcon: Icon(Icons.dialpad, color: IosTheme.primaryGreen),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
+            onPressed: () async {
+              final newNum = numCtrl.text.trim();
+              if (newNum.isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(ctx);
+              final res = await ApiService.instance.adminUpdateUserNumber(userId, newNum);
+              if (res['success'] == true) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Number updated to $newNum successfully!'), backgroundColor: IosTheme.primaryGreen),
+                );
+                _loadAllAdminData();
+              } else {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(res['error'] ?? 'Failed to update number'), backgroundColor: Colors.redAccent),
+                );
+              }
+            },
+            child: const Text('Save Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _reviewHubRequest(String requestId, String action, String hubName) async {
     String note = '';
     if (action == 'reject') {
@@ -512,12 +572,37 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                                   ],
                                 ),
                                 const SizedBox(height: 3),
-                                Text(
-                                  '${u['full_number']} • ${u['district_name'] ?? ''}',
-                                  style: const TextStyle(fontSize: 13, color: IosTheme.primaryGreen, fontWeight: FontWeight.w600),
+                                Row(
+                                  children: [
+                                    Text(
+                                      u['full_number'],
+                                      style: const TextStyle(fontSize: 14, color: IosTheme.primaryGreen, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () => _showCustomizeNumberDialog(u['id'], u['full_number'], u['display_name'] ?? 'User'),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: IosTheme.accentBlue.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: IosTheme.accentBlue.withValues(alpha: 0.4)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.edit, size: 10, color: IosTheme.accentBlue),
+                                            SizedBox(width: 3),
+                                            Text('Customize', style: TextStyle(fontSize: 10, color: IosTheme.accentBlue, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
-                                  'Phone: ${u['phone']} ${u['email'] != '' ? '• ${u['email']}' : ''}',
+                                  'Area: ${u['district_name'] ?? ''} • Phone: ${u['phone']} ${u['email'] != '' ? '• ${u['email']}' : ''}',
                                   style: const TextStyle(fontSize: 11, color: Colors.white54),
                                 ),
                               ],

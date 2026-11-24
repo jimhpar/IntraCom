@@ -84,6 +84,7 @@ func main() {
 	adminGroup.Get("/users", api.AdminListUsersHandler)
 	adminGroup.Post("/users/manual", api.AdminManualCreateUserHandler)
 	adminGroup.Put("/users/:id/suspend", api.AdminToggleSuspendHandler)
+	adminGroup.Put("/users/:id/number", api.AdminUpdateUserNumberHandler)
 	adminGroup.Get("/hub-requests", api.AdminListHubRequestsHandler)
 	adminGroup.Post("/hub-requests/:id/review", api.AdminReviewHubRequestHandler)
 	adminGroup.Post("/hubs/:id/bans", api.AdminBanUserFromHubHandler)

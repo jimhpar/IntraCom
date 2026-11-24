@@ -158,6 +158,40 @@ func AdminManualCreateUserHandler(c *fiber.Ctx) error {
 	return RegisterHandler(c) // Uses same district & 7-digit generator pipeline
 }
 
+// PUT /api/v1/admin/users/:id/number - Admin customizes/updates a user's IntraCom number
+func AdminUpdateUserNumberHandler(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	type NumberInput struct {
+		FullNumber string `json:"full_number"`
+	}
+	var input NumberInput
+	if err := c.BodyParser(&input); err != nil || strings.TrimSpace(input.FullNumber) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "full_number is required (e.g. +1-7777777)"})
+	}
+
+	newNumber := strings.TrimSpace(input.FullNumber)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Check if already taken by another user
+	var existingID string
+	err := db.Pool.QueryRow(ctx, "SELECT id FROM users WHERE full_number = $1 AND id != $2", newNumber, userID).Scan(&existingID)
+	if err == nil && existingID != "" {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "This number is already assigned to another user"})
+	}
+
+	_, err = db.Pool.Exec(ctx, "UPDATE users SET full_number = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", newNumber, userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to update number"})
+	}
+
+	return c.JSON(fiber.Map{
+		"success":     true,
+		"message":     fmt.Sprintf("User number updated to %s", newNumber),
+		"full_number": newNumber,
+	})
+}
+
 // GET /api/v1/admin/hub-requests - List pending requests
 func AdminListHubRequestsHandler(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

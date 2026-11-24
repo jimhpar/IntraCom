@@ -297,91 +297,105 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Brand Header
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white12),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Brand Header
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: const Icon(Icons.phone_in_talk_rounded, color: IosTheme.primaryGreen, size: 34),
                       ),
-                      child: const Icon(Icons.phone_in_talk_rounded, color: IosTheme.primaryGreen, size: 34),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'IntraCom',
-                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 1.5),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Independent Calling Network • Bangladesh',
-                      style: TextStyle(fontSize: 13, color: Colors.white54),
-                    ),
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'IntraCom',
+                        style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Independent Calling Network • Bangladesh',
+                        style: TextStyle(fontSize: 13, color: Colors.white54),
+                      ),
+                      const SizedBox(height: 24),
 
-                    // Glassmorphic Card Container
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF16161A).withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                          ),
-                          padding: const EdgeInsets.all(22),
-                          child: Column(
-                            children: [
-                              // Tab Selector
-                              Container(
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: TabBar(
-                                  controller: _tabController,
-                                  indicator: BoxDecoration(
-                                    color: const Color(0xFF2C2C2E),
-                                    borderRadius: BorderRadius.circular(12),
+                      // Glassmorphic Card Container
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF16161A).withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            ),
+                            padding: const EdgeInsets.all(22),
+                            child: Column(
+                              children: [
+                                // Tab Selector with full-tab segmented highlight
+                                Container(
+                                  height: 46,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F0F12),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                  labelColor: Colors.white,
-                                  unselectedLabelColor: Colors.white38,
-                                  dividerColor: Colors.transparent,
-                                  tabs: const [
-                                    Tab(text: 'Sign In'),
-                                    Tab(text: 'Create Account'),
-                                  ],
+                                  child: TabBar(
+                                    controller: _tabController,
+                                    indicatorSize: TabBarIndicatorSize.tab,
+                                    indicator: BoxDecoration(
+                                      color: const Color(0xFF2C2C30),
+                                      borderRadius: BorderRadius.circular(10),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.4),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    labelColor: Colors.white,
+                                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    unselectedLabelColor: Colors.white38,
+                                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                    dividerColor: Colors.transparent,
+                                    tabs: const [
+                                      Tab(text: 'Sign In'),
+                                      Tab(text: 'Create Account'),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 22),
+                                const SizedBox(height: 22),
 
-                              // Tab Views
-                              SizedBox(
-                                height: 350,
-                                child: TabBarView(
-                                  controller: _tabController,
-                                  children: [
-                                    // 1. SIGN IN TAB
-                                    _buildSignInTab(),
+                                // Tab Views
+                                SizedBox(
+                                  height: 440,
+                                  child: TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      // 1. SIGN IN TAB
+                                      _buildSignInTab(),
 
-                                    // 2. SIGN UP TAB
-                                    _buildSignUpTab(),
-                                  ],
+                                      // 2. SIGN UP TAB
+                                      _buildSignUpTab(),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
