@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"strings"
@@ -17,15 +18,20 @@ import (
 
 type RegisterRequest struct {
 	DisplayName  string `json:"display_name"`
-	Email        string `json:"email"`
+	Email        string `json:"email"` // OPTIONAL
 	Phone        string `json:"phone"`
 	Password     string `json:"password"`
 	DistrictCode int    `json:"district_code"`
 }
 
 type LoginRequest struct {
-	Identifier string `json:"identifier"` // full_number (+1-3847291) or email or phone
+	Identifier string `json:"identifier"` // full_number (+1-3847291) or phone or email
 	Password   string `json:"password"`
+}
+
+type UpdateProfileRequest struct {
+	DisplayName string `json:"display_name"`
+	Bio         string `json:"bio"`
 }
 
 func RegisterHandler(c *fiber.Ctx) error {
@@ -41,10 +47,11 @@ func RegisterHandler(c *fiber.Ctx) error {
 	req.Phone = strings.TrimSpace(req.Phone)
 	req.DisplayName = strings.TrimSpace(req.DisplayName)
 
-	if req.DisplayName == "" || req.Password == "" || req.Email == "" || req.Phone == "" {
+	// Note: Email is OPTIONAL. Only DisplayName, Phone, Password, and District are required!
+	if req.DisplayName == "" || req.Password == "" || req.Phone == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "All fields (name, email, phone, password, district) are required",
+			"error":   "Name, phone number, and password are required",
 		})
 	}
 
@@ -94,31 +101,38 @@ func RegisterHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	// Handle optional email
+	var emailParam interface{} = nil
+	if req.Email != "" {
+		emailParam = req.Email
+	}
+
 	// 4. Insert into database
 	var userID string
+	var isAdmin bool
 	query := `
 		INSERT INTO users (district_code, user_number, full_number, display_name, email, phone, password_hash, district_name)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id
+		RETURNING id, is_admin
 	`
 	err = db.Pool.QueryRow(ctx, query,
 		district.Code,
 		userNumber,
 		fullNumber,
 		req.DisplayName,
-		req.Email,
+		emailParam,
 		req.Phone,
 		passwordHash,
 		district.NameEn,
-	).Scan(&userID)
+	).Scan(&userID, &isAdmin)
 
 	if err != nil {
 		log.Printf("Registration DB error: %v", err)
-		if strings.Contains(err.Error(), "users_email_key") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "Email is already registered"})
-		}
 		if strings.Contains(err.Error(), "users_phone_key") {
-			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "Phone number is already registered"})
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "This mobile phone number is already registered"})
+		}
+		if strings.Contains(err.Error(), "users_email_key") {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "This email is already registered"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Database registration failed"})
 	}
@@ -141,6 +155,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 			"display_name":  req.DisplayName,
 			"email":         req.Email,
 			"phone":         req.Phone,
+			"is_admin":      isAdmin,
 			"token":         token,
 		},
 	})
@@ -166,15 +181,18 @@ func LoginHandler(c *fiber.Ctx) error {
 		districtCode int
 		districtName string
 		displayName  string
-		email        string
 		phone        string
 		passwordHash string
+		email        sql.NullString
+		bio          sql.NullString
+		isSuspended  bool
+		isAdmin      bool
 	)
 
 	query := `
-		SELECT id, full_number, district_code, district_name, display_name, email, phone, password_hash
+		SELECT id, full_number, district_code, district_name, display_name, phone, password_hash, email, bio, is_suspended, is_admin
 		FROM users
-		WHERE full_number = $1 OR LOWER(email) = LOWER($1) OR phone = $1
+		WHERE full_number = $1 OR phone = $1 OR (email IS NOT NULL AND LOWER(email) = LOWER($1))
 	`
 	err := db.Pool.QueryRow(ctx, query, req.Identifier).Scan(
 		&userID,
@@ -182,15 +200,26 @@ func LoginHandler(c *fiber.Ctx) error {
 		&districtCode,
 		&districtName,
 		&displayName,
-		&email,
 		&phone,
 		&passwordHash,
+		&email,
+		&bio,
+		&isSuspended,
+		&isAdmin,
 	)
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": false,
-			"error":   "User not found with provided number/email",
+			"error":   "User not found with provided number/phone",
+		})
+	}
+
+	// Check if user is suspended
+	if isSuspended {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error":   "Your IntraCom account has been suspended by an administrator. Please contact support.",
 		})
 	}
 
@@ -214,9 +243,47 @@ func LoginHandler(c *fiber.Ctx) error {
 			"district_code": districtCode,
 			"district_name": districtName,
 			"display_name":  displayName,
-			"email":         email,
+			"email":         email.String,
 			"phone":         phone,
+			"bio":           bio.String,
+			"is_admin":      isAdmin,
 			"token":         token,
+		},
+	})
+}
+
+// PUT /api/v1/users/me - Update profile name and bio
+func UpdateProfileHandler(c *fiber.Ctx) error {
+	claims, ok := c.Locals("user").(*auth.JWTClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Unauthorized"})
+	}
+
+	var req UpdateProfileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Invalid body"})
+	}
+
+	req.DisplayName = strings.TrimSpace(req.DisplayName)
+	if req.DisplayName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Name cannot be empty"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := db.Pool.Exec(ctx, "UPDATE users SET display_name = $1, bio = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
+		req.DisplayName, req.Bio, claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to update profile"})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Profile updated successfully",
+		"data": fiber.Map{
+			"display_name": req.DisplayName,
+			"bio":          req.Bio,
 		},
 	})
 }
@@ -232,6 +299,17 @@ func WebSocketHandler(c *websocket.Conn) {
 	claims, err := auth.ValidateToken(token)
 	if err != nil {
 		log.Printf("WS connection rejected: invalid token: %v", err)
+		c.Close()
+		return
+	}
+
+	// Verify suspension status before allowing connection
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	var isSuspended bool
+	_ = db.Pool.QueryRow(ctx, "SELECT is_suspended FROM users WHERE id = $1", claims.UserID).Scan(&isSuspended)
+	cancel()
+	if isSuspended {
+		log.Printf("WS connection rejected: user %s is suspended", claims.FullNumber)
 		c.Close()
 		return
 	}

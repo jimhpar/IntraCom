@@ -28,7 +28,7 @@ func main() {
 	log.Println("IntraCom Real-Time WebSocket Signaling Hub started")
 
 	app := fiber.New(fiber.Config{
-		AppName: "IntraCom Backend v1.0",
+		AppName: "IntraCom Backend v1.1",
 	})
 
 	app.Use(logger.New())
@@ -44,6 +44,7 @@ func main() {
 		return c.JSON(fiber.Map{
 			"status":  "healthy",
 			"service": "IntraCom Core API",
+			"version": "1.1.0",
 		})
 	})
 
@@ -65,6 +66,27 @@ func main() {
 	authGroup := app.Group("/api/v1/auth")
 	authGroup.Post("/register", api.RegisterHandler)
 	authGroup.Post("/login", api.LoginHandler)
+
+	// User protected routes
+	userGroup := app.Group("/api/v1/users", api.UserAuthMiddleware)
+	userGroup.Put("/me", api.UpdateProfileHandler)
+
+	// Hangouts routes
+	hangoutGroup := app.Group("/api/v1/hangouts")
+	hangoutGroup.Get("/public", api.GetPublicHubsHandler)
+	hangoutGroup.Post("/request-public", api.UserAuthMiddleware, api.RequestPublicHubHandler)
+	hangoutGroup.Get("/private", api.UserAuthMiddleware, api.GetPrivateTablesHandler)
+	hangoutGroup.Post("/private", api.UserAuthMiddleware, api.CreatePrivateTableHandler)
+
+	// Admin protected routes
+	adminGroup := app.Group("/api/v1/admin", api.AdminAuthMiddleware)
+	adminGroup.Get("/stats", api.AdminStatsHandler)
+	adminGroup.Get("/users", api.AdminListUsersHandler)
+	adminGroup.Post("/users/manual", api.AdminManualCreateUserHandler)
+	adminGroup.Put("/users/:id/suspend", api.AdminToggleSuspendHandler)
+	adminGroup.Get("/hub-requests", api.AdminListHubRequestsHandler)
+	adminGroup.Post("/hub-requests/:id/review", api.AdminReviewHubRequestHandler)
+	adminGroup.Post("/hubs/:id/bans", api.AdminBanUserFromHubHandler)
 
 	// WebSocket Signaling Route (Audio, Video & Hangout voice channels)
 	app.Use("/ws", func(c *fiber.Ctx) error {
