@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'contacts/contacts_screen.dart';
 import 'dialer/dialer_screen.dart';
 import 'messages/messages_screen.dart';
-import 'profile/profile_screen.dart';
 import 'hangout/hangout_screen.dart';
+import 'profile/profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -14,14 +14,15 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 1; // Default to Dialer (index 1) like iPhone phone app
+  int _currentIndex = 1; // Default to Keypad/Dialer (index 1) like iPhone
 
+  // Ordered: Contacts -> Keypad -> Messages -> Hangout -> Profile (far right!)
   final List<Widget> _screens = const [
     ContactsScreen(),
     DialerScreen(),
     MessagesScreen(),
-    ProfileScreen(),
     HangoutScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -51,14 +52,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             label: 'Messages',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.person_crop_circle),
-            activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.speaker_2),
             activeIcon: Icon(CupertinoIcons.speaker_2_fill),
             label: 'Hangout',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.person_crop_circle),
+            activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
+            label: 'Profile',
           ),
         ],
       ),

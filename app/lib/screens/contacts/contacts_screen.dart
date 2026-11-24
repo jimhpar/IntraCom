@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/ios_theme.dart';
+import '../calling/in_call_screen.dart';
+import '../messages/chat_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -14,8 +16,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   final List<Map<String, dynamic>> _contacts = [
     {
-      'name': 'Md. Tanvir Hasan',
-      'number': '+1-3847291',
+      'name': 'Rafiq Ahmed',
+      'number': '+1-6860499',
       'district': 'Dhaka (+1)',
       'isOnline': true,
     },
@@ -70,7 +72,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
               controller: numberCtrl,
               decoration: const InputDecoration(
                 labelText: 'IntraCom Number',
-                hintText: '+1-3847291',
+                hintText: '+1-6860499',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -160,6 +162,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 final isOnline = item['isOnline'] == true;
 
                 return ListTile(
+                  onTap: () {
+                    // Tapping contact opens Chat!
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          contactName: item['name'],
+                          contactNumber: item['number'],
+                        ),
+                      ),
+                    );
+                  },
                   leading: Stack(
                     children: [
                       CircleAvatar(
@@ -199,16 +213,32 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       IconButton(
                         icon: const Icon(Icons.phone, color: IosTheme.primaryGreen),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Calling ${item['number']}...')),
+                          // Directly open In-Call Screen!
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => InCallScreen(
+                                targetNumber: item['number'],
+                                targetName: item['name'],
+                                isVideo: false,
+                              ),
+                            ),
                           );
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.videocam, color: IosTheme.accentBlue),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Video calling ${item['number']}...')),
+                          // Directly open Video Call Screen!
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => InCallScreen(
+                                targetNumber: item['number'],
+                                targetName: item['name'],
+                                isVideo: true,
+                              ),
+                            ),
                           );
                         },
                       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'screens/auth/register_screen.dart';
+import 'screens/auth/auth_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/api_service.dart';
 import 'services/signaling_service.dart';
@@ -34,7 +34,7 @@ class IntraComApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       home: ApiService.instance.isAuthenticated
           ? const MainNavigationScreen()
-          : const RegisterScreen(),
+          : const AuthScreen(),
     );
   }
 }

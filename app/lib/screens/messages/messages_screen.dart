@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/ios_theme.dart';
+import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -11,14 +12,14 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final List<Map<String, dynamic>> _chats = [
     {
-      'name': 'Md. Tanvir Hasan',
-      'number': '+1-3847291',
+      'name': 'Rafiq Ahmed',
+      'number': '+1-6860499',
       'lastMessage': 'Audio call connected nicely with low latency!',
       'time': '1:45 PM',
       'unread': 2,
     },
     {
-      'name': 'Farhan Ahmed',
+      'name': 'Farhan (Narsingdi)',
       'number': '+2-1000001',
       'lastMessage': 'See you in the Narsingdi Hangout tonight.',
       'time': 'Yesterday',
@@ -33,6 +34,78 @@ class _MessagesScreenState extends State<MessagesScreen> {
     },
   ];
 
+  void _openChat(Map<String, dynamic> chat) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          contactName: chat['name'],
+          contactNumber: chat['number'],
+        ),
+      ),
+    );
+  }
+
+  void _showNewChatDialog() {
+    final numberCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: IosTheme.cardDark,
+        title: const Text('Start New Message'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: numberCtrl,
+              decoration: const InputDecoration(
+                labelText: 'IntraCom Number',
+                hintText: '+1-6860499',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Name (Optional)',
+                hintText: 'e.g. Tanvir',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: IosTheme.accentBlue),
+            onPressed: () {
+              if (numberCtrl.text.isNotEmpty) {
+                Navigator.pop(ctx);
+                final name = nameCtrl.text.isEmpty ? numberCtrl.text : nameCtrl.text;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      contactName: name,
+                      contactNumber: numberCtrl.text.trim(),
+                    ),
+                  ),
+                );
+              }
+            },
+            child: const Text('Chat', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,11 +115,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_square, color: IosTheme.accentBlue),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Start new direct message chat')),
-              );
-            },
+            onPressed: _showNewChatDialog,
           ),
         ],
       ),
@@ -62,6 +131,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           final unread = (chat['unread'] as int) > 0;
 
           return ListTile(
+            onTap: () => _openChat(chat),
             leading: CircleAvatar(
               radius: 24,
               backgroundColor: const Color(0xFF2C2C2E),
@@ -118,11 +188,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
               ],
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Opening chat with ${chat['number']}...')),
-              );
-            },
           );
         },
       ),

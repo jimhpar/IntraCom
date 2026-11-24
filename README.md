@@ -309,7 +309,7 @@ flowchart TB
 
 ```
 Auth & Registration:
-  POST   /api/v1/auth/register          → Register (name, email, phone, district, password)
+  POST   /api/v1/auth/register          → Register (name, phone, district, password, optional email)
   POST   /api/v1/auth/verify-otp        → Verify OTP
   POST   /api/v1/auth/login             → Login → JWT token pair
   POST   /api/v1/auth/refresh           → Refresh access token

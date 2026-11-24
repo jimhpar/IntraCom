@@ -21,6 +21,7 @@ class ApiService {
   String? get token => _token;
   Map<String, dynamic>? get currentUser => _currentUser;
   bool get isAuthenticated => _token != null;
+  bool get isAdmin => _currentUser?['is_admin'] == true;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -28,19 +29,24 @@ class ApiService {
     final userNum = prefs.getString('user_number');
     final userName = prefs.getString('user_name');
     final userDistrict = prefs.getString('user_district');
+    final userBio = prefs.getString('user_bio');
+    final isAdminVal = prefs.getBool('is_admin') ?? false;
 
     if (_token != null && userNum != null) {
       _currentUser = {
         'full_number': userNum,
         'display_name': userName ?? 'User',
         'district_name': userDistrict ?? '',
+        'bio': userBio ?? '',
+        'is_admin': isAdminVal,
       };
+      _dio.options.headers['Authorization'] = 'Bearer $_token';
     }
   }
 
   Future<Map<String, dynamic>> register({
     required String name,
-    required String email,
+    String? email,
     required String phone,
     required String password,
     required int districtCode,
@@ -48,7 +54,7 @@ class ApiService {
     try {
       final response = await _dio.post('/api/v1/auth/register', data: {
         'display_name': name,
-        'email': email,
+        'email': (email != null && email.trim().isNotEmpty) ? email.trim() : null,
         'phone': phone,
         'password': password,
         'district_code': districtCode,
@@ -91,16 +97,155 @@ class ApiService {
   Future<void> _saveSession(Map<String, dynamic> data) async {
     _token = data['token'];
     _currentUser = data;
+    _dio.options.headers['Authorization'] = 'Bearer $_token';
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', _token!);
+    if (_token != null) await prefs.setString('auth_token', _token!);
     await prefs.setString('user_number', data['full_number'] ?? '');
     await prefs.setString('user_name', data['display_name'] ?? '');
     await prefs.setString('user_district', data['district_name'] ?? '');
+    await prefs.setString('user_bio', data['bio'] ?? '');
+    await prefs.setBool('is_admin', data['is_admin'] == true);
+  }
+
+  Future<Map<String, dynamic>> updateProfile({String? displayName, String? bio}) async {
+    try {
+      final response = await _dio.put('/api/v1/users/me', data: {
+        'display_name': ?displayName,
+        'bio': ?bio,
+      });
+      if (response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data != null && _currentUser != null) {
+          _currentUser!['display_name'] = data['display_name'] ?? _currentUser!['display_name'];
+          _currentUser!['bio'] = data['bio'] ?? _currentUser!['bio'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_name', _currentUser!['display_name'] ?? '');
+          await prefs.setString('user_bio', _currentUser!['bio'] ?? '');
+        }
+        return {'success': true, 'message': response.data['message'] ?? 'Profile updated'};
+      }
+      return {'success': false, 'error': response.data['error'] ?? 'Update failed'};
+    } on DioException catch (e) {
+      return {'success': false, 'error': e.response?.data?['error'] ?? e.message ?? 'Network error'};
+    }
+  }
+
+  // Admin APIs
+  Future<Map<String, dynamic>> getAdminStats() async {
+    try {
+      final res = await _dio.get('/api/v1/admin/stats');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAdminUsers({String? query}) async {
+    try {
+      final res = await _dio.get('/api/v1/admin/users', queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminToggleSuspend(String userId) async {
+    try {
+      final res = await _dio.put('/api/v1/admin/users/$userId/suspend');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAdminHubRequests() async {
+    try {
+      final res = await _dio.get('/api/v1/admin/hub-requests');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminReviewHubRequest(String requestId, String action, {String note = ''}) async {
+    try {
+      final res = await _dio.post('/api/v1/admin/hub-requests/$requestId/review', data: {
+        'action': action,
+        'note': note,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> adminBanUserFromHub(String hubId, String userNumber, {String reason = ''}) async {
+    try {
+      final res = await _dio.post('/api/v1/admin/hubs/$hubId/bans', data: {
+        'user_number': userNumber,
+        'reason': reason,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  // Hangouts APIs
+  Future<Map<String, dynamic>> getPublicHubs() async {
+    try {
+      final res = await _dio.get('/api/v1/hangouts/public');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> requestPublicHub({required String name, required String description, required int districtCode}) async {
+    try {
+      final res = await _dio.post('/api/v1/hangouts/request-public', data: {
+        'name': name,
+        'description': description,
+        'district_code': districtCode,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getPrivateTables() async {
+    try {
+      final res = await _dio.get('/api/v1/hangouts/private');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createPrivateTable({
+    required String name,
+    required String description,
+    required List<String> memberNumbers,
+  }) async {
+    try {
+      final res = await _dio.post('/api/v1/hangouts/private', data: {
+        'name': name,
+        'description': description,
+        'member_numbers': memberNumbers,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
   }
 
   Future<void> logout() async {
     _token = null;
     _currentUser = null;
+    _dio.options.headers.remove('Authorization');
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }

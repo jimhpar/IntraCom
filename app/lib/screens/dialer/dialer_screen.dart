@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/ios_theme.dart';
+import '../calling/in_call_screen.dart';
 
 class DialerScreen extends StatefulWidget {
   const DialerScreen({super.key});
@@ -38,11 +39,16 @@ class _DialerScreenState extends State<DialerScreen> {
   void _makeCall({bool isVideo = false}) {
     if (_enteredNumber.isEmpty) return;
     HapticFeedback.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling $_enteredNumber (${isVideo ? "Video" : "Audio"})...'),
-        backgroundColor: IosTheme.primaryGreen,
-        duration: const Duration(seconds: 2),
+
+    // Immediately open the In-Call interface!
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InCallScreen(
+          targetNumber: _enteredNumber,
+          targetName: 'Calling...',
+          isVideo: isVideo,
+        ),
       ),
     );
   }
@@ -136,7 +142,7 @@ class _DialerScreenState extends State<DialerScreen> {
               )
             else
               const Text(
-                'e.g. +1-3847291 (Dhaka)',
+                'e.g. +1-6860499 (Dhaka) or +2-XXXXXXX',
                 style: TextStyle(fontSize: 13, color: Colors.white38),
               ),
             const Spacer(flex: 1),
