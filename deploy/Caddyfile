@@ -1,0 +1,9 @@
+{
+    email admin@intracom.local
+}
+
+:80 {
+    reverse_proxy /api/* api:8080
+    reverse_proxy /ws api:8080
+    reverse_proxy /health api:8080
+}

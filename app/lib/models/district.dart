@@ -1,0 +1,83 @@
+class District {
+  final int code;
+  final String nameEn;
+  final String nameBn;
+  final String division;
+
+  const District({
+    required this.code,
+    required this.nameEn,
+    required this.nameBn,
+    required this.division,
+  });
+
+  String get displayName => '$nameEn ($nameBn)';
+  String get areaCodeString => '+$code';
+}
+
+final List<District> bangladeshDistricts = [
+  const District(code: 1, nameEn: 'Dhaka', nameBn: 'ঢাকা', division: 'Dhaka'),
+  const District(code: 2, nameEn: 'Narsingdi', nameBn: 'নরসিংদী', division: 'Dhaka'),
+  const District(code: 3, nameEn: 'Brahmanbaria', nameBn: 'ব্রাহ্মণবাড়িয়া', division: 'Chattogram'),
+  const District(code: 4, nameEn: 'Kishoreganj', nameBn: 'কিশোরগঞ্জ', division: 'Dhaka'),
+  const District(code: 5, nameEn: 'Gazipur', nameBn: 'গাজীপুর', division: 'Dhaka'),
+  const District(code: 6, nameEn: 'Manikganj', nameBn: 'মানিকগঞ্জ', division: 'Dhaka'),
+  const District(code: 7, nameEn: 'Munshiganj', nameBn: 'মুন্সিগঞ্জ', division: 'Dhaka'),
+  const District(code: 8, nameEn: 'Narayanganj', nameBn: 'নারায়ণগঞ্জ', division: 'Dhaka'),
+  const District(code: 9, nameEn: 'Tangail', nameBn: 'টাঙ্গাইল', division: 'Dhaka'),
+  const District(code: 10, nameEn: 'Faridpur', nameBn: 'ফরিদপুর', division: 'Dhaka'),
+  const District(code: 11, nameEn: 'Gopalganj', nameBn: 'গোপালগঞ্জ', division: 'Dhaka'),
+  const District(code: 12, nameEn: 'Madaripur', nameBn: 'মাদারীপুর', division: 'Dhaka'),
+  const District(code: 13, nameEn: 'Rajbari', nameBn: 'রাজবাড়ী', division: 'Dhaka'),
+  const District(code: 14, nameEn: 'Shariatpur', nameBn: 'শরীয়তপুর', division: 'Dhaka'),
+  const District(code: 15, nameEn: 'Chattogram', nameBn: 'চট্টগ্রাম', division: 'Chattogram'),
+  const District(code: 16, nameEn: 'Cumilla', nameBn: 'কুমিল্লা', division: 'Chattogram'),
+  const District(code: 17, nameEn: 'Chandpur', nameBn: 'চাঁদপুর', division: 'Chattogram'),
+  const District(code: 18, nameEn: 'Cox\'s Bazar', nameBn: 'কক্সবাজার', division: 'Chattogram'),
+  const District(code: 19, nameEn: 'Feni', nameBn: 'ফেনী', division: 'Chattogram'),
+  const District(code: 20, nameEn: 'Lakshmipur', nameBn: 'লক্ষ্মীপুর', division: 'Chattogram'),
+  const District(code: 21, nameEn: 'Noakhali', nameBn: 'নোয়াখালী', division: 'Chattogram'),
+  const District(code: 22, nameEn: 'Rangamati', nameBn: 'রাঙ্গামাটি', division: 'Chattogram'),
+  const District(code: 23, nameEn: 'Khagrachhari', nameBn: 'খাগড়াছড়ি', division: 'Chattogram'),
+  const District(code: 24, nameEn: 'Bandarban', nameBn: 'বান্দরবান', division: 'Chattogram'),
+  const District(code: 25, nameEn: 'Rajshahi', nameBn: 'রাজশাহী', division: 'Rajshahi'),
+  const District(code: 26, nameEn: 'Naogaon', nameBn: 'নওগাঁ', division: 'Rajshahi'),
+  const District(code: 27, nameEn: 'Natore', nameBn: 'নাটোর', division: 'Rajshahi'),
+  const District(code: 28, nameEn: 'Chapainawabganj', nameBn: 'চাঁপাইনবাবগঞ্জ', division: 'Rajshahi'),
+  const District(code: 29, nameEn: 'Pabna', nameBn: 'পাবনা', division: 'Rajshahi'),
+  const District(code: 30, nameEn: 'Bogura', nameBn: 'বগুড়া', division: 'Rajshahi'),
+  const District(code: 31, nameEn: 'Joypurhat', nameBn: 'জয়পুরহাট', division: 'Rajshahi'),
+  const District(code: 32, nameEn: 'Sirajganj', nameBn: 'সিরাজগঞ্জ', division: 'Rajshahi'),
+  const District(code: 33, nameEn: 'Khulna', nameBn: 'খুলনা', division: 'Khulna'),
+  const District(code: 34, nameEn: 'Bagerhat', nameBn: 'বাগেরহাট', division: 'Khulna'),
+  const District(code: 35, nameEn: 'Satkhira', nameBn: 'সাতক্ষীরা', division: 'Khulna'),
+  const District(code: 36, nameEn: 'Jessore', nameBn: 'যশোর', division: 'Khulna'),
+  const District(code: 37, nameEn: 'Magura', nameBn: 'মাগুরা', division: 'Khulna'),
+  const District(code: 38, nameEn: 'Narail', nameBn: 'নড়াইল', division: 'Khulna'),
+  const District(code: 39, nameEn: 'Jhenaidah', nameBn: 'ঝিনাইদহ', division: 'Khulna'),
+  const District(code: 40, nameEn: 'Kushtia', nameBn: 'কুষ্টিয়া', division: 'Khulna'),
+  const District(code: 41, nameEn: 'Chuadanga', nameBn: 'চুয়াডাঙ্গা', division: 'Khulna'),
+  const District(code: 42, nameEn: 'Meherpur', nameBn: 'মেহেরপুর', division: 'Khulna'),
+  const District(code: 43, nameEn: 'Barishal', nameBn: 'বরিশাল', division: 'Barishal'),
+  const District(code: 44, nameEn: 'Patuakhali', nameBn: 'পটুয়াখালী', division: 'Barishal'),
+  const District(code: 45, nameEn: 'Bhola', nameBn: 'ভোলা', division: 'Barishal'),
+  const District(code: 46, nameEn: 'Pirojpur', nameBn: 'পিরোজপুর', division: 'Barishal'),
+  const District(code: 47, nameEn: 'Jhalokati', nameBn: 'ঝালকাঠি', division: 'Barishal'),
+  const District(code: 48, nameEn: 'Barguna', nameBn: 'বরগুনা', division: 'Barishal'),
+  const District(code: 49, nameEn: 'Sylhet', nameBn: 'সিলেট', division: 'Sylhet'),
+  const District(code: 50, nameEn: 'Moulvibazar', nameBn: 'মৌলভীবাজার', division: 'Sylhet'),
+  const District(code: 51, nameEn: 'Habiganj', nameBn: 'হবিগঞ্জ', division: 'Sylhet'),
+  const District(code: 52, nameEn: 'Sunamganj', nameBn: 'সুনামগঞ্জ', division: 'Sylhet'),
+  const District(code: 53, nameEn: 'Rangpur', nameBn: 'রংপুর', division: 'Rangpur'),
+  const District(code: 54, nameEn: 'Dinajpur', nameBn: 'দিনাজপুর', division: 'Rangpur'),
+  const District(code: 55, nameEn: 'Thakurgaon', nameBn: 'ঠাকুরগাঁও', division: 'Rangpur'),
+  const District(code: 56, nameEn: 'Panchagarh', nameBn: 'পঞ্চগড়', division: 'Rangpur'),
+  const District(code: 57, nameEn: 'Nilphamari', nameBn: 'নীলফামারী', division: 'Rangpur'),
+  const District(code: 58, nameEn: 'Lalmonirhat', nameBn: 'লালমনিরহাট', division: 'Rangpur'),
+  const District(code: 59, nameEn: 'Kurigram', nameBn: 'কুড়িগ্রাম', division: 'Rangpur'),
+  const District(code: 60, nameEn: 'Gaibandha', nameBn: 'গাইবান্ধা', division: 'Rangpur'),
+  const District(code: 61, nameEn: 'Mymensingh', nameBn: 'ময়মনসিংহ', division: 'Mymensingh'),
+  const District(code: 62, nameEn: 'Jamalpur', nameBn: 'জামালপুর', division: 'Mymensingh'),
+  const District(code: 63, nameEn: 'Sherpur', nameBn: 'শেরপুর', division: 'Mymensingh'),
+  const District(code: 64, nameEn: 'Netrokona', nameBn: 'নেত্রকোনা', division: 'Mymensingh'),
+];
