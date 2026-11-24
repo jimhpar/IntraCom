@@ -3,13 +3,18 @@
 }
 
 :80 {
-    # Proxy core backend and WebSocket signaling
-    reverse_proxy /api/* api:8080
-    reverse_proxy /ws api:8080
-    reverse_proxy /health api:8080
-
-    # Serve Flutter Web frontend directly in browser
-    root * /srv/web
-    file_server
-    try_files {path} /index.html
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+    handle /ws {
+        reverse_proxy api:8080
+    }
+    handle /health {
+        reverse_proxy api:8080
+    }
+    handle {
+        root * /srv/web
+        try_files {path} /index.html
+        file_server
+    }
 }
