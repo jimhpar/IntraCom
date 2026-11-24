@@ -8,10 +8,25 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/websocket/v2"
+
+	"intracom-server/internal/api"
+	"intracom-server/internal/db"
 	"intracom-server/internal/numbering"
+	"intracom-server/internal/signaling"
 )
 
 func main() {
+	// 1. Initialize PostgreSQL Connection Pool
+	_, err := db.ConnectDB()
+	if err != nil {
+		log.Printf("Warning: Database connection failed (will retry on operations): %v", err)
+	}
+
+	// 2. Start WebSocket Signaling Hub
+	go signaling.GlobalHub.Run()
+	log.Println("IntraCom Real-Time WebSocket Signaling Hub started")
+
 	app := fiber.New(fiber.Config{
 		AppName: "IntraCom Backend v1.0",
 	})
@@ -21,6 +36,7 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
 
 	// Health check
@@ -31,10 +47,8 @@ func main() {
 		})
 	})
 
-	api := app.Group("/api/v1")
-
-	// Public district list for registration
-	api.Get("/districts", func(c *fiber.Ctx) error {
+	// Public district list
+	app.Get("/api/v1/districts", func(c *fiber.Ctx) error {
 		districts := make([]numbering.District, 0, len(numbering.Districts))
 		for i := 1; i <= 64; i++ {
 			if d, ok := numbering.Districts[i]; ok {
@@ -46,6 +60,21 @@ func main() {
 			"data":    districts,
 		})
 	})
+
+	// Auth routes
+	authGroup := app.Group("/api/v1/auth")
+	authGroup.Post("/register", api.RegisterHandler)
+	authGroup.Post("/login", api.LoginHandler)
+
+	// WebSocket Signaling Route (Audio, Video & Hangout voice channels)
+	app.Use("/ws", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			c.Locals("allowed", true)
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+	app.Get("/ws", websocket.New(api.WebSocketHandler))
 
 	port := os.Getenv("PORT")
 	if port == "" {
