@@ -30,6 +30,7 @@ class _InCallScreenState extends State<InCallScreen> {
   late bool _isConnected;
 
   Timer? _callTimer;
+  Timer? _ringTimeoutTimer;
   int _callSeconds = 0;
   StreamSubscription? _signalingSub;
 
@@ -39,44 +40,71 @@ class _InCallScreenState extends State<InCallScreen> {
     _isVideoCamOn = widget.isVideo;
     _isConnected = widget.initialConnected;
 
-    if (_isConnected) {
-      _startTimer();
-    } else {
-      // Send real call offer via signaling service
-      SignalingService.instance.sendCallOffer(
-        widget.targetNumber,
-        {'type': 'offer', 'sdp': 'webrtc_pion_sdp'},
-        callType: widget.isVideo ? 'video' : 'audio',
-      );
-    }
-
-    // Listen for peer responses (Call Accepted or Hung Up)
+    // 1. Listen for peer responses BEFORE sending call offer so no packet is dropped
     _signalingSub = SignalingService.instance.messageStream.listen((msg) {
       if (!mounted) return;
 
       final type = msg['type'];
-      final from = msg['from'];
+      final from = (msg['from'] ?? '').toString();
+      final cleanFrom = from.replaceAll('-', '').replaceAll('+', '');
+      final cleanTarget = widget.targetNumber.replaceAll('-', '').replaceAll('+', '');
 
-      if (type == 'call_answer' && (from == widget.targetNumber || from != null)) {
+      final isMatch = from.isEmpty ||
+          from == widget.targetNumber ||
+          cleanFrom == cleanTarget ||
+          (cleanTarget.length == 7 && cleanFrom.endsWith(cleanTarget)) ||
+          (cleanFrom.length == 7 && cleanTarget.endsWith(cleanFrom));
+
+      if (type == 'call_answer' && isMatch) {
+        _ringTimeoutTimer?.cancel();
         if (!_isConnected) {
           setState(() {
             _isConnected = true;
           });
           _startTimer();
         }
-      } else if (type == 'call_hangup' && (from == widget.targetNumber || from != null)) {
+      } else if ((type == 'call_hangup' || type == 'call_reject') && isMatch) {
+        _ringTimeoutTimer?.cancel();
         _onPeerHangup();
       } else if (type == 'call_unavailable') {
+        _ringTimeoutTimer?.cancel();
         _callTimer?.cancel();
         if (mounted) {
           final reason = msg['payload']?['reason'] ?? 'User is currently offline or unreachable';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(reason), backgroundColor: Colors.redAccent, duration: const Duration(seconds: 3)),
+            SnackBar(content: Text(reason), backgroundColor: Colors.redAccent, duration: const Duration(seconds: 4)),
           );
           Navigator.pop(context);
         }
       }
     });
+
+    if (_isConnected) {
+      _startTimer();
+    } else {
+      // 2. Start a 30-second Ringing Timeout
+      _ringTimeoutTimer = Timer(const Duration(seconds: 30), () {
+        if (!_isConnected && mounted) {
+          _callTimer?.cancel();
+          SignalingService.instance.sendHangup(widget.targetNumber);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No Answer (Call timed out after 30s)'),
+              backgroundColor: Colors.orangeAccent,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      });
+
+      // 3. Send real call offer via signaling service
+      SignalingService.instance.sendCallOffer(
+        widget.targetNumber,
+        {'type': 'offer', 'sdp': 'webrtc_pion_sdp'},
+        callType: widget.isVideo ? 'video' : 'audio',
+      );
+    }
   }
 
   void _startTimer() {
@@ -89,6 +117,7 @@ class _InCallScreenState extends State<InCallScreen> {
   }
 
   void _onPeerHangup() {
+    _ringTimeoutTimer?.cancel();
     _callTimer?.cancel();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -99,6 +128,7 @@ class _InCallScreenState extends State<InCallScreen> {
   }
 
   void _endCall() {
+    _ringTimeoutTimer?.cancel();
     _callTimer?.cancel();
     SignalingService.instance.sendHangup(widget.targetNumber);
     if (mounted) {
@@ -114,6 +144,7 @@ class _InCallScreenState extends State<InCallScreen> {
 
   @override
   void dispose() {
+    _ringTimeoutTimer?.cancel();
     _callTimer?.cancel();
     _signalingSub?.cancel();
     super.dispose();

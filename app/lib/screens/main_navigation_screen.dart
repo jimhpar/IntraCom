@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'contacts/contacts_screen.dart';
+import 'calls/call_history_screen.dart';
 import 'dialer/dialer_screen.dart';
 import 'messages/messages_screen.dart';
 import 'hangout/hangout_screen.dart';
 import 'profile/profile_screen.dart';
 import 'calling/in_call_screen.dart';
+import 'messages/chat_screen.dart';
 import '../services/signaling_service.dart';
 import '../theme/ios_theme.dart';
 
@@ -18,13 +20,15 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 1; // Default to Keypad/Dialer (index 1) like iPhone
+  int _currentIndex = 2; // Default to Keypad/Dialer (index 2) like iPhone
   StreamSubscription? _signalingSub;
   bool _isIncomingCallVisible = false;
+  BuildContext? _incomingCallDialogCtx;
 
-  // Ordered: Contacts -> Keypad -> Messages -> Hangout -> Profile (far right!)
+  // Ordered: Contacts -> Recents (Call History) -> Keypad -> Messages -> Hangout -> Profile
   final List<Widget> _screens = const [
     ContactsScreen(),
+    CallHistoryScreen(),
     DialerScreen(),
     MessagesScreen(),
     HangoutScreen(),
@@ -34,19 +38,74 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
-    _listenForIncomingCalls();
+    _listenForIncomingEvents();
   }
 
-  void _listenForIncomingCalls() {
+  void _listenForIncomingEvents() {
     _signalingSub = SignalingService.instance.messageStream.listen((msg) {
       if (!mounted) return;
 
-      if (msg['type'] == 'call_offer' && !_isIncomingCallVisible) {
+      final type = msg['type'];
+
+      if (type == 'call_offer' && !_isIncomingCallVisible) {
         final callerNumber = msg['from'] ?? 'Unknown Caller';
         final callerName = msg['caller_name'] ?? 'IntraCom User';
         final isVideo = msg['call_type'] == 'video';
 
         _showIncomingCallDialog(callerNumber, callerName, isVideo);
+      } else if (type == 'call_hangup' && _isIncomingCallVisible) {
+        if (_incomingCallDialogCtx != null && mounted) {
+          Navigator.of(_incomingCallDialogCtx!).pop();
+          _incomingCallDialogCtx = null;
+          _isIncomingCallVisible = false;
+        }
+      } else if (type == 'chat_message') {
+        final payload = msg['payload'] ?? {};
+        final text = payload['content'] ?? payload['text'] ?? msg['content'] ?? '';
+        final senderName = msg['caller_name'] ?? payload['sender_name'] ?? msg['from'] ?? 'User';
+        final senderNum = (msg['from'] ?? payload['sender_num'] ?? '').toString();
+
+        if (text.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF1C1C1E),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              content: Row(
+                children: [
+                  const Icon(CupertinoIcons.chat_bubble_fill, color: IosTheme.primaryGreen, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(senderName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              action: SnackBarAction(
+                label: 'Reply',
+                textColor: IosTheme.primaryGreen,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        contactName: senderName,
+                        contactNumber: senderNum,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     });
   }
@@ -59,6 +118,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       barrierDismissible: false,
       barrierColor: Colors.black87,
       pageBuilder: (ctx, anim1, anim2) {
+        _incomingCallDialogCtx = ctx;
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: SafeArea(
@@ -170,6 +230,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       },
     ).then((_) {
       _isIncomingCallVisible = false;
+      _incomingCallDialogCtx = null;
     });
   }
 
@@ -187,6 +248,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         children: _screens,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
@@ -194,6 +256,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(CupertinoIcons.person_2),
             activeIcon: Icon(CupertinoIcons.person_2_fill),
             label: 'Contacts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.clock),
+            activeIcon: Icon(CupertinoIcons.clock_fill),
+            label: 'Recents',
           ),
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.circle_grid_3x3),

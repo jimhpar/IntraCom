@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   StreamSubscription? _signalSub;
+  Timer? _syncTimer;
 
   List<Map<String, dynamic>> _messages = [];
   bool _loading = false;
@@ -34,7 +35,14 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _loadMessages();
 
-    // Listen for live messages from WebSocket
+    // 1. Live background poller every 2 seconds for instantaneous syncing
+    _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        _syncMessages();
+      }
+    });
+
+    // 2. Listen for live messages from WebSocket
     _signalSub = SignalingService.instance.messageStream.listen((msg) {
       if (!mounted) return;
       final type = msg['type'];
@@ -48,16 +56,19 @@ class _ChatScreenState extends State<ChatScreen> {
           final myNum = ApiService.instance.currentUser?['full_number'] ?? '';
 
           if (senderNum != myNum) {
-            setState(() {
-              _messages.add({
-                'id': payload['id'],
-                'isMe': false,
-                'senderName': payload['sender_name'] ?? senderNum,
-                'text': payload['content'] ?? payload['text'] ?? '',
-                'time': 'Just now',
+            final msgId = payload['id'];
+            if (msgId == null || !_messages.any((m) => m['id'] == msgId)) {
+              setState(() {
+                _messages.add({
+                  'id': msgId,
+                  'isMe': false,
+                  'senderName': payload['sender_name'] ?? senderNum,
+                  'text': payload['content'] ?? payload['text'] ?? '',
+                  'time': 'Just now',
+                });
               });
-            });
-            _scrollToBottom();
+              _scrollToBottom();
+            }
           }
         }
       } else {
@@ -67,18 +78,25 @@ class _ChatScreenState extends State<ChatScreen> {
           final cleanFrom = fromNum.replaceAll('-', '').replaceAll('+', '');
           final cleanContact = widget.contactNumber.replaceAll('-', '').replaceAll('+', '');
 
-          if (cleanFrom == cleanContact || fromNum == widget.contactNumber) {
+          if (cleanFrom == cleanContact || fromNum == widget.contactNumber ||
+              (cleanContact.length == 7 && cleanFrom.endsWith(cleanContact)) ||
+              (cleanFrom.length == 7 && cleanContact.endsWith(cleanFrom))) {
             final payload = msg['payload'] ?? {};
             final text = payload['text'] ?? payload['content'] ?? msg['content'] ?? '';
-            setState(() {
-              _messages.add({
-                'isMe': false,
-                'senderName': widget.contactName,
-                'text': text,
-                'time': 'Just now',
+            final msgId = payload['id'];
+
+            if (text.isNotEmpty && (msgId == null || !_messages.any((m) => m['id'] == msgId))) {
+              setState(() {
+                _messages.add({
+                  'id': msgId,
+                  'isMe': false,
+                  'senderName': widget.contactName,
+                  'text': text,
+                  'time': 'Just now',
+                });
               });
-            });
-            _scrollToBottom();
+              _scrollToBottom();
+            }
           }
         }
       }
@@ -87,6 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    _syncTimer?.cancel();
     _signalSub?.cancel();
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
@@ -150,6 +169,39 @@ class _ChatScreenState extends State<ChatScreen> {
         _scrollToBottom();
       }
     }
+  }
+
+  Future<void> _syncMessages() async {
+    try {
+      List<Map<String, dynamic>> rawList;
+      if (widget.isHubChat) {
+        rawList = await ApiService.instance.getHubMessages(widget.contactNumber);
+      } else {
+        rawList = await ApiService.instance.getDirectChat(widget.contactNumber);
+      }
+
+      if (!mounted) return;
+      final myNum = (ApiService.instance.currentUser?['full_number'] ?? '').replaceAll('-', '').replaceAll('+', '');
+
+      final mapped = rawList.map((m) {
+        final senderNum = (m['sender_num'] ?? '').toString().replaceAll('-', '').replaceAll('+', '');
+        final isMe = m['is_me'] == true || (myNum.isNotEmpty && senderNum == myNum);
+        return {
+          'id': m['id'],
+          'isMe': isMe,
+          'senderName': isMe ? 'Me' : (m['sender_name'] ?? widget.contactName),
+          'text': m['content'] ?? '',
+          'time': _formatMsgTime(m['created_at']),
+        };
+      }).toList();
+
+      if (mapped.length != _messages.length) {
+        setState(() {
+          _messages = mapped;
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {}
   }
 
   void _sendMessage() async {

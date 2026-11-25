@@ -16,13 +16,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<Map<String, dynamic>> _conversations = [];
   bool _loading = true;
   StreamSubscription? _msgSub;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadConversations();
 
-    // Listen for live messages from WebSocket to refresh conversations
+    // 1. Silent live background poller every 3 seconds
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        _loadConversations(silent: true);
+      }
+    });
+
+    // 2. Listen for live messages from WebSocket to refresh conversations
     _msgSub = SignalingService.instance.messageStream.listen((msg) {
       if (!mounted) return;
       final type = msg['type'];
@@ -34,6 +42,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _msgSub?.cancel();
     super.dispose();
   }

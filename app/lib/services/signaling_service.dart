@@ -15,6 +15,7 @@ class SignalingService {
   Stream<Map<String, dynamic>> get messageStream => _messagesController.stream;
   bool _isConnected = false;
   bool get isConnected => _isConnected;
+  final List<Map<String, dynamic>> _pendingSignals = [];
 
   // Authentic live presence tracker
   final ValueNotifier<Set<String>> onlineUsersNotifier = ValueNotifier<Set<String>>({});
@@ -52,6 +53,7 @@ class SignalingService {
       _channel = WebSocketChannel.connect(uri);
       _isConnected = true;
       _startHeartbeat();
+      _flushPendingSignals();
 
       _channel!.stream.listen(
         (data) {
@@ -109,9 +111,31 @@ class SignalingService {
     });
   }
 
+  void _flushPendingSignals() {
+    if (_channel != null && _isConnected && _pendingSignals.isNotEmpty) {
+      final list = List<Map<String, dynamic>>.from(_pendingSignals);
+      _pendingSignals.clear();
+      for (final msg in list) {
+        try {
+          _channel!.sink.add(jsonEncode(msg));
+        } catch (_) {}
+      }
+    }
+  }
+
   void sendSignal(Map<String, dynamic> message) {
     if (_channel != null && _isConnected) {
-      _channel!.sink.add(jsonEncode(message));
+      try {
+        _channel!.sink.add(jsonEncode(message));
+      } catch (_) {
+        _pendingSignals.add(message);
+      }
+    } else {
+      _pendingSignals.add(message);
+      // Try reconnecting if not connected
+      if (ApiService.instance.isAuthenticated) {
+        connect();
+      }
     }
   }
 

@@ -410,6 +410,37 @@ class ApiService {
     }
   }
 
+  // Call History APIs
+  Future<List<Map<String, dynamic>>> getCallHistory() async {
+    try {
+      final res = await _dio.get('/api/v1/calls/history');
+      if (res.data['success'] == true && res.data['data'] is List) {
+        return List<Map<String, dynamic>>.from(res.data['data']);
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<bool> clearCallHistory() async {
+    try {
+      final res = await _dio.delete('/api/v1/calls/history');
+      return res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteCallLog(String callId) async {
+    try {
+      final res = await _dio.delete('/api/v1/calls/history/$callId');
+      return res.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> deleteDirectMessage(String msgId) async {
     try {
       final res = await _dio.delete('/api/v1/messages/msg/$msgId');
@@ -427,12 +458,13 @@ class ApiService {
       // Return default starter contacts
       return [
         {'name': 'Zim Official (Admin)', 'number': '+1-1111111', 'district': 'Dhaka (+1)'},
+        {'name': 'Tasnia', 'number': '+25-7871466', 'district': 'Rajshahi (+25)'},
         {'name': 'Rafiq Ahmed', 'number': '+1-6860499', 'district': 'Dhaka (+1)'},
         {'name': 'Farhan Ahmed', 'number': '+2-1000001', 'district': 'Narsingdi (+2)'},
         {'name': 'Kazi Sakib', 'number': '+3-9182746', 'district': 'Brahmanbaria (+3)'},
       ];
     }
-    return raw.map((item) {
+    final list = raw.map((item) {
       final parts = item.split('|');
       return {
         'name': parts.isNotEmpty ? parts[0] : 'User',
@@ -440,6 +472,17 @@ class ApiService {
         'district': parts.length > 2 ? parts[2] : 'IntraCom',
       };
     }).toList();
+
+    // Ensure Tasnia is always present
+    if (!list.any((c) => (c['number'] ?? '').toString().contains('7871466'))) {
+      list.insert(0, {
+        'name': 'Tasnia',
+        'number': '+25-7871466',
+        'district': 'Rajshahi (+25)',
+      });
+    }
+
+    return list;
   }
 
   Future<void> addContact({required String name, required String number, String district = 'IntraCom'}) async {
