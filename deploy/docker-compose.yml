@@ -5,6 +5,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8080:8080"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./web:/srv/web
@@ -31,8 +32,8 @@ services:
       - postgres
       - redis
       - coturn
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
 
   postgres:
     image: postgres:16-alpine
