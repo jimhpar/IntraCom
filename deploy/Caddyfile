@@ -3,7 +3,7 @@
 }
 
 # Domain calling.asf.run - Automatic Real Public SSL (Let's Encrypt / ZeroSSL)
-calling.asf.run, calling.asf.run:8080, www.calling.asf.run {
+calling.asf.run, www.calling.asf.run {
     handle /api/* {
         reverse_proxy api:8080
     }
@@ -20,8 +20,8 @@ calling.asf.run, calling.asf.run:8080, www.calling.asf.run {
     }
 }
 
-# Direct IP fallback with internal cert
-https://129.225.125.127:8080, :8080 {
+# Direct IP and port 8080 fallback with self-signed certificate
+:8080 {
     tls /etc/caddy/server.crt /etc/caddy/server.key
 
     handle /api/* {
