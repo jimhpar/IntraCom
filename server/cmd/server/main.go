@@ -94,6 +94,12 @@ func main() {
 	msgGroup.Delete("/chat/:peer", api.DeleteConversationHandler)
 	msgGroup.Delete("/msg/:id", api.DeleteMessageHandler)
 
+	// Call History routes
+	callGroup := app.Group("/api/v1/calls", api.UserAuthMiddleware)
+	callGroup.Get("/history", api.ListCallHistoryHandler)
+	callGroup.Delete("/history", api.ClearCallHistoryHandler)
+	callGroup.Delete("/history/:id", api.DeleteCallLogHandler)
+
 	// Admin protected routes
 	adminGroup := app.Group("/api/v1/admin", api.AdminAuthMiddleware)
 	adminGroup.Get("/stats", api.AdminStatsHandler)

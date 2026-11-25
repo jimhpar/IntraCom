@@ -515,6 +515,21 @@ func WebSocketHandler(c *websocket.Conn) {
 			if signal.HangoutID != "" {
 				signaling.GlobalHub.LeaveHangout(signal.HangoutID, client.FullNumber)
 			}
+		case "call_offer":
+			if signal.To != "" {
+				go RecordCallOffer(claims.UserID, signal.To, signal.CallType)
+			}
+			signaling.GlobalHub.RouteMessage(signal)
+		case "call_answer":
+			if signal.To != "" {
+				go RecordCallAnswer(signal.To, claims.UserID)
+			}
+			signaling.GlobalHub.RouteMessage(signal)
+		case "call_hangup", "call_reject":
+			if signal.To != "" {
+				go RecordCallHangup(client.FullNumber, signal.To)
+			}
+			signaling.GlobalHub.RouteMessage(signal)
 		case "chat_message":
 			// If payload has content, persist to DB in background
 			if signal.To != "" {

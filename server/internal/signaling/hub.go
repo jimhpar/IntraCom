@@ -33,20 +33,20 @@ type Client struct {
 }
 
 type Hub struct {
-	// Registered online clients by their IntraCom number (e.g. "+1-3847291")
-	clients    map[string]*Client
+	// Registered online clients by their IntraCom number: maps fullNumber -> set of active *Client connections
+	clients     map[string]map[*Client]bool
 	hangoutHubs map[string]map[string]*Client // hangout_id -> map[fullNumber]*Client
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
+	broadcast   chan []byte
+	register    chan *Client
+	unregister  chan *Client
+	mu          sync.RWMutex
 }
 
 var GlobalHub = NewHub()
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:     make(map[string]*Client),
+		clients:     make(map[string]map[*Client]bool),
 		hangoutHubs: make(map[string]map[string]*Client),
 		broadcast:   make(chan []byte),
 		register:    make(chan *Client),
@@ -59,17 +59,26 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.mu.Lock()
-			h.clients[client.FullNumber] = client
+			if h.clients[client.FullNumber] == nil {
+				h.clients[client.FullNumber] = make(map[*Client]bool)
+			}
+			isFirstSession := len(h.clients[client.FullNumber]) == 0
+			h.clients[client.FullNumber][client] = true
+
 			onlineSnapshot := make([]string, 0, len(h.clients))
 			for num := range h.clients {
 				onlineSnapshot = append(onlineSnapshot, num)
 			}
+			sessionCount := len(h.clients[client.FullNumber])
 			h.mu.Unlock()
-			log.Printf("User online: %s (Total online: %d)", client.FullNumber, len(onlineSnapshot))
-			// Send initial presence list to the connected user immediately
+
+			log.Printf("User session registered: %s (Active tabs/sessions: %d, Total online users: %d)",
+				client.FullNumber, sessionCount, len(onlineSnapshot))
+
+			// Send initial presence list to the newly connected client immediately
 			initMsg := SignalMessage{
-				Type: "initial_presence",
-				From: "system",
+				Type:    "initial_presence",
+				From:    "system",
 				Payload: onlineSnapshot,
 			}
 			if initBytes, err := json.Marshal(initMsg); err == nil {
@@ -78,33 +87,50 @@ func (h *Hub) Run() {
 				default:
 				}
 			}
-			h.broadcastPresence(client.FullNumber, "online")
+
+			if isFirstSession {
+				h.broadcastPresence(client.FullNumber, "online")
+			}
 
 		case client := <-h.unregister:
 			h.mu.Lock()
-			if _, ok := h.clients[client.FullNumber]; ok {
-				delete(h.clients, client.FullNumber)
+			var isFullyOffline bool
+			if clientMap, ok := h.clients[client.FullNumber]; ok {
+				delete(clientMap, client)
 				close(client.Send)
-				// Remove from any active hangout hubs
-				for hubID, members := range h.hangoutHubs {
-					if _, inHub := members[client.FullNumber]; inHub {
-						delete(members, client.FullNumber)
-						h.notifyHangoutMemberLeft(hubID, client.FullNumber)
-					}
+				if len(clientMap) == 0 {
+					delete(h.clients, client.FullNumber)
+					isFullyOffline = true
 				}
 			}
+
+			// Remove from any active hangout hubs
+			for hubID, members := range h.hangoutHubs {
+				if _, inHub := members[client.FullNumber]; inHub {
+					delete(members, client.FullNumber)
+					h.notifyHangoutMemberLeft(hubID, client.FullNumber)
+				}
+			}
+			onlineCount := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("User offline: %s (Total online: %d)", client.FullNumber, len(h.clients))
-			h.broadcastPresence(client.FullNumber, "offline")
+
+			if isFullyOffline {
+				log.Printf("User completely offline: %s (Total online users: %d)", client.FullNumber, onlineCount)
+				h.broadcastPresence(client.FullNumber, "offline")
+			} else {
+				log.Printf("User session closed: %s (Remaining active sessions: %d)", client.FullNumber, len(h.clients[client.FullNumber]))
+			}
 
 		case message := <-h.broadcast:
 			h.mu.RLock()
-			for _, client := range h.clients {
-				select {
-				case client.Send <- message:
-				default:
-					close(client.Send)
-					delete(h.clients, client.FullNumber)
+			for _, clientMap := range h.clients {
+				for client := range clientMap {
+					select {
+					case client.Send <- message:
+					default:
+						close(client.Send)
+						delete(clientMap, client)
+					}
 				}
 			}
 			h.mu.RUnlock()
@@ -147,11 +173,13 @@ func (h *Hub) BroadcastHubMessage(hangoutID string, msg SignalMessage) {
 			}
 		}
 	} else {
-		// Broadcast to all connected clients if specific hangout room is empty
-		for _, client := range h.clients {
-			select {
-			case client.Send <- bytes:
-			default:
+		// Broadcast to all connected clients
+		for _, clientMap := range h.clients {
+			for client := range clientMap {
+				select {
+				case client.Send <- bytes:
+				default:
+				}
 			}
 		}
 	}
@@ -167,32 +195,36 @@ func cleanNumber(s string) string {
 	return b.String()
 }
 
-// FindClient locates a connected client by exact full_number, clean digits, or phone lookup
-func (h *Hub) FindClient(target string) (*Client, bool) {
+// FindClients locates all connected client sessions for a given target number or alias
+func (h *Hub) FindClients(target string) []*Client {
 	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	var results []*Client
+
 	// 1. Direct exact match (e.g. "+1-1111111")
-	if client, ok := h.clients[target]; ok {
-		h.mu.RUnlock()
-		return client, true
+	if m, ok := h.clients[target]; ok && len(m) > 0 {
+		for c := range m {
+			results = append(results, c)
+		}
+		return results
 	}
 
 	// 2. Normalized match (strip +, -, spaces)
 	cleanTarget := cleanNumber(target)
 	if cleanTarget != "" {
-		for num, client := range h.clients {
+		for num, m := range h.clients {
 			cleanNum := cleanNumber(num)
-			if cleanNum == cleanTarget {
-				h.mu.RUnlock()
-				return client, true
-			}
-			// If target is 7 digits (subscriber portion), match suffix
-			if len(cleanTarget) == 7 && strings.HasSuffix(cleanNum, cleanTarget) {
-				h.mu.RUnlock()
-				return client, true
+			if cleanNum == cleanTarget || (len(cleanTarget) == 7 && strings.HasSuffix(cleanNum, cleanTarget)) {
+				for c := range m {
+					results = append(results, c)
+				}
 			}
 		}
+		if len(results) > 0 {
+			return results
+		}
 	}
-	h.mu.RUnlock()
 
 	// 3. Database lookup if target is phone number, clean digits, or subscriber portion
 	if db.Pool != nil {
@@ -213,39 +245,56 @@ func (h *Hub) FindClient(target string) (*Client, bool) {
 		`
 		err := db.Pool.QueryRow(ctx, query, target, "+"+target, cleanTarget).Scan(&fullNumber)
 		if err == nil && fullNumber != "" {
-			h.mu.RLock()
-			defer h.mu.RUnlock()
-			if client, ok := h.clients[fullNumber]; ok {
-				return client, true
+			if m, ok := h.clients[fullNumber]; ok && len(m) > 0 {
+				for c := range m {
+					results = append(results, c)
+				}
+				return results
 			}
 			cleanDbNum := cleanNumber(fullNumber)
-			for num, client := range h.clients {
+			for num, m := range h.clients {
 				if cleanNumber(num) == cleanDbNum {
-					return client, true
+					for c := range m {
+						results = append(results, c)
+					}
 				}
 			}
 		}
 	}
 
+	return results
+}
+
+// FindClient locates a single connected client for backward compatibility
+func (h *Hub) FindClient(target string) (*Client, bool) {
+	clients := h.FindClients(target)
+	if len(clients) > 0 {
+		return clients[0], true
+	}
 	return nil, false
 }
 
-// RouteMessage sends signaling packets (offer, answer, ice, reject, hangup) directly to the target user
+// RouteMessage sends signaling packets directly to all active sessions of the target user
 func (h *Hub) RouteMessage(msg SignalMessage) {
-	// 1:1 Calling Signal
+	// 1:1 Calling or Direct Chat Signal
 	if msg.To != "" {
-		recipient, ok := h.FindClient(msg.To)
-		if ok {
+		recipients := h.FindClients(msg.To)
+		if len(recipients) > 0 {
 			data, err := json.Marshal(msg)
 			if err == nil {
-				log.Printf("[Signaling] Routed %s from %s to %s (%s)", msg.Type, msg.From, recipient.FullNumber, recipient.DisplayName)
-				recipient.Send <- data
+				log.Printf("[Signaling] Routed %s from %s to %s (%d active sessions)", msg.Type, msg.From, msg.To, len(recipients))
+				for _, recipient := range recipients {
+					select {
+					case recipient.Send <- data:
+					default:
+					}
+				}
 			}
 		} else {
 			log.Printf("[Signaling] User unavailable for %s: Target=%s, Caller=%s", msg.Type, msg.To, msg.From)
-			// Target is offline -> notify caller
-			caller, hasCaller := h.FindClient(msg.From)
-			if hasCaller {
+			// Target is offline -> notify caller if it's a call offer
+			callers := h.FindClients(msg.From)
+			if len(callers) > 0 && (msg.Type == "call_offer" || msg.Type == "chat_message") {
 				offlineMsg := SignalMessage{
 					Type: "call_unavailable",
 					From: "system",
@@ -256,7 +305,12 @@ func (h *Hub) RouteMessage(msg SignalMessage) {
 					},
 				}
 				bytes, _ := json.Marshal(offlineMsg)
-				caller.Send <- bytes
+				for _, caller := range callers {
+					select {
+					case caller.Send <- bytes:
+					default:
+					}
+				}
 			}
 		}
 		return
@@ -285,16 +339,22 @@ func (h *Hub) JoinHangout(hangoutID, fullNumber string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	client, ok := h.clients[fullNumber]
-	if !ok {
+	clientMap, ok := h.clients[fullNumber]
+	if !ok || len(clientMap) == 0 {
 		return
+	}
+
+	var anyClient *Client
+	for c := range clientMap {
+		anyClient = c
+		break
 	}
 
 	if _, exists := h.hangoutHubs[hangoutID]; !exists {
 		h.hangoutHubs[hangoutID] = make(map[string]*Client)
 	}
 
-	h.hangoutHubs[hangoutID][fullNumber] = client
+	h.hangoutHubs[hangoutID][fullNumber] = anyClient
 	log.Printf("User %s joined hangout %s (Total in hub: %d)", fullNumber, hangoutID, len(h.hangoutHubs[hangoutID]))
 
 	// Notify all existing members that someone joined
@@ -306,7 +366,10 @@ func (h *Hub) JoinHangout(hangoutID, fullNumber string) {
 	bytes, _ := json.Marshal(joinMsg)
 	for num, member := range h.hangoutHubs[hangoutID] {
 		if num != fullNumber {
-			member.Send <- bytes
+			select {
+			case member.Send <- bytes:
+			default:
+			}
 		}
 	}
 }
@@ -330,7 +393,10 @@ func (h *Hub) notifyHangoutMemberLeft(hangoutID, fullNumber string) {
 		}
 		bytes, _ := json.Marshal(leaveMsg)
 		for _, member := range members {
-			member.Send <- bytes
+			select {
+			case member.Send <- bytes:
+			default:
+			}
 		}
 	}
 }
