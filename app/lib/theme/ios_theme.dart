@@ -109,21 +109,38 @@ class IosTheme {
     scaffoldBackgroundColor: const Color(0xFFF2F2F7),
     cardColor: Colors.white,
     primaryColor: primaryGreen,
+    canvasColor: const Color(0xFFF2F2F7),
     colorScheme: const ColorScheme.light(
       primary: primaryGreen,
       secondary: accentBlue,
       surface: Colors.white,
+      onSurface: Color(0xFF1C1C1E),
     ),
+    dividerColor: const Color(0xFFE5E5EA),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.white,
+      foregroundColor: Color(0xFF1C1C1E),
       elevation: 0,
       centerTitle: true,
-      iconTheme: IconThemeData(color: Colors.black),
+      iconTheme: IconThemeData(color: Color(0xFF1C1C1E)),
       titleTextStyle: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
-        color: Colors.black,
+        color: Color(0xFF1C1C1E),
       ),
+    ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.white,
+      titleTextStyle: TextStyle(color: Color(0xFF1C1C1E), fontSize: 18, fontWeight: FontWeight.bold),
+      contentTextStyle: TextStyle(color: Color(0xFF3A3A3C), fontSize: 14),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+    ),
+    tabBarTheme: const TabBarThemeData(
+      labelColor: primaryGreen,
+      unselectedLabelColor: Color(0xFF8E8E93),
+      indicatorColor: primaryGreen,
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,

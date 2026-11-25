@@ -47,32 +47,42 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _showNewChatDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final numberCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
-        title: const Text('Start New Message'),
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Start New Message', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: numberCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'IntraCom Number',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: '+1-6860499',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Name (Optional)',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: 'e.g. Tanvir',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -80,7 +90,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: IosTheme.accentBlue),
@@ -108,8 +118,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final dividerColor = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Messages'),
         actions: [
@@ -121,8 +136,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       ),
       body: ListView.separated(
         itemCount: _chats.length,
-        separatorBuilder: (context, index) => const Divider(
-          color: Colors.white10,
+        separatorBuilder: (context, index) => Divider(
+          color: dividerColor,
           indent: 72,
           height: 1,
         ),
@@ -134,10 +149,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
             onTap: () => _openChat(chat),
             leading: CircleAvatar(
               radius: 24,
-              backgroundColor: const Color(0xFF2C2C2E),
+              backgroundColor: avatarBg,
               child: Text(
                 (chat['name'] as String).substring(0, 1),
-                style: const TextStyle(fontSize: 18, color: Colors.white),
+                style: TextStyle(fontSize: 18, color: primaryTextColor, fontWeight: FontWeight.bold),
               ),
             ),
             title: Row(
@@ -146,7 +161,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Expanded(
                   child: Text(
                     chat['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryTextColor),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -154,7 +169,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   chat['time'],
                   style: TextStyle(
                     fontSize: 12,
-                    color: unread ? IosTheme.accentBlue : Colors.white38,
+                    color: unread ? IosTheme.accentBlue : secondaryTextColor,
                   ),
                 ),
               ],
@@ -166,7 +181,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     chat['lastMessage'],
                     style: TextStyle(
                       fontSize: 13,
-                      color: unread ? Colors.white : Colors.white54,
+                      color: unread ? (isDark ? Colors.white : Colors.black87) : secondaryTextColor,
                       fontWeight: unread ? FontWeight.w500 : FontWeight.normal,
                     ),
                     maxLines: 1,

@@ -36,39 +36,46 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   void _showAddContactDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameCtrl = TextEditingController();
     final numberCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Add IntraCom Contact', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Add IntraCom Contact',
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+              decoration: InputDecoration(
                 labelText: 'Contact Name',
-                labelStyle: TextStyle(color: Colors.white54),
+                labelStyle: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF8E8E93)),
                 hintText: 'e.g. Rafiq Islam',
-                hintStyle: TextStyle(color: Colors.white24),
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: numberCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+              decoration: InputDecoration(
                 labelText: 'IntraCom Number',
-                labelStyle: TextStyle(color: Colors.white54),
+                labelStyle: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF8E8E93)),
                 hintText: '+1-6860499',
-                hintStyle: TextStyle(color: Colors.white24),
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -76,7 +83,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF8E8E93))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
@@ -106,6 +113,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final searchBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE5E5EA);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final dividerColor = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+
     final filtered = _contacts.where((c) {
       final q = _filter.toLowerCase();
       return (c['name'] ?? '').toString().toLowerCase().contains(q) ||
@@ -113,12 +127,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Contacts'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
             onPressed: _loadContacts,
           ),
           IconButton(
@@ -135,13 +148,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
             child: Container(
               height: 38,
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: searchBg,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: TextField(
                 controller: _searchController,
                 onChanged: (v) => setState(() => _filter = v),
-                style: const TextStyle(fontSize: 15, color: Colors.white),
+                style: TextStyle(fontSize: 15, color: primaryTextColor),
                 decoration: const InputDecoration(
                   hintText: 'Search by name or +Code-Number',
                   hintStyle: TextStyle(color: Color(0xFF8E8E93), fontSize: 14),
@@ -159,15 +172,15 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     valueListenable: SignalingService.instance.onlineUsersNotifier,
                     builder: (context, onlineUsers, child) {
                       if (filtered.isEmpty) {
-                        return const Center(
-                          child: Text('No contacts found', style: TextStyle(color: Colors.white38)),
+                        return Center(
+                          child: Text('No contacts found', style: TextStyle(color: secondaryTextColor)),
                         );
                       }
 
                       return ListView.separated(
                         itemCount: filtered.length,
-                        separatorBuilder: (context, index) => const Divider(
-                          color: Colors.white10,
+                        separatorBuilder: (context, index) => Divider(
+                          color: dividerColor,
                           indent: 72,
                           height: 1,
                         ),
@@ -194,10 +207,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
                               children: [
                                 CircleAvatar(
                                   radius: 22,
-                                  backgroundColor: const Color(0xFF2C2C2E),
+                                  backgroundColor: avatarBg,
                                   child: Text(
                                     name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                    style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                                    style: TextStyle(fontSize: 18, color: primaryTextColor, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 Positioned(
@@ -207,9 +220,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                     width: 12,
                                     height: 12,
                                     decoration: BoxDecoration(
-                                      color: isOnline ? IosTheme.primaryGreen : Colors.grey.shade700,
+                                      color: isOnline ? IosTheme.primaryGreen : Colors.grey.shade500,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.black, width: 2),
+                                      border: Border.all(color: isDark ? Colors.black : Colors.white, width: 2),
                                     ),
                                   ),
                                 ),
@@ -219,7 +232,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                               children: [
                                 Text(
                                   name,
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
+                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: primaryTextColor),
                                 ),
                                 if (isOnline) ...[
                                   const SizedBox(width: 8),
@@ -236,7 +249,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             ),
                             subtitle: Text(
                               '$num ${district.isNotEmpty ? '• $district' : ''}',
-                              style: const TextStyle(fontSize: 13, color: Colors.white54),
+                              style: TextStyle(fontSize: 13, color: secondaryTextColor),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,

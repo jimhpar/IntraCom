@@ -6,8 +6,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
 
--- Make first user or zim admin by default
-UPDATE users SET is_admin = TRUE WHERE full_number LIKE '+1-%' OR email LIKE '%zim%';
+-- Make initial admin user admin by default
+UPDATE users SET is_admin = TRUE WHERE full_number = '+1-1111111' OR email = 'admin';
 
 -- 2. Hangouts table updates
 ALTER TABLE hangouts ADD COLUMN IF NOT EXISTS hub_type VARCHAR(20) DEFAULT 'public'; -- public, private

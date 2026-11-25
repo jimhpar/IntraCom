@@ -173,18 +173,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final otherBubbleBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final otherBubbleText = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final otherBubbleTime = isDark ? Colors.white38 : const Color(0xFF8E8E93);
+    final bottomBarBg = isDark ? const Color(0xFF161618) : Colors.white;
+    final bottomBarBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+    final inputBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: const Color(0xFF2C2C2E),
+              backgroundColor: avatarBg,
               child: Icon(
                 widget.isHubChat ? Icons.forum_rounded : Icons.person,
-                color: widget.isHubChat ? IosTheme.accentBlue : Colors.white,
+                color: widget.isHubChat ? IosTheme.accentBlue : (isDark ? Colors.white : const Color(0xFF1C1C1E)),
                 size: 20,
               ),
             ),
@@ -195,7 +205,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Text(
                     widget.contactName,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: primaryTextColor),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
@@ -210,7 +220,7 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: widget.isHubChat
             ? [
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white70),
+                  icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
                   onPressed: _loadMessages,
                 ),
               ]
@@ -270,7 +280,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             maxWidth: MediaQuery.of(context).size.width * 0.75,
                           ),
                           decoration: BoxDecoration(
-                            color: isMe ? IosTheme.primaryGreen : const Color(0xFF2C2C2E),
+                            color: isMe ? IosTheme.primaryGreen : otherBubbleBg,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(16),
                               topRight: const Radius.circular(16),
@@ -295,7 +305,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               Text(
                                 m['text'] ?? '',
                                 style: TextStyle(
-                                  color: isMe ? Colors.white : Colors.white.withValues(alpha: 0.95),
+                                  color: isMe ? Colors.white : otherBubbleText,
                                   fontSize: 15,
                                 ),
                               ),
@@ -303,7 +313,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               Text(
                                 m['time'] ?? '',
                                 style: TextStyle(
-                                  color: isMe ? Colors.white70 : Colors.white38,
+                                  color: isMe ? Colors.white70 : otherBubbleTime,
                                   fontSize: 10,
                                 ),
                               ),
@@ -317,8 +327,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF161618),
-              border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+              color: bottomBarBg,
+              border: Border(top: BorderSide(color: bottomBarBorder)),
             ),
             child: SafeArea(
               child: Row(
@@ -326,17 +336,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2C2C2E),
+                        color: inputBg,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: TextField(
                         controller: _msgCtrl,
-                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        style: TextStyle(color: primaryTextColor, fontSize: 15),
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _sendMessage(),
                         decoration: InputDecoration(
                           hintText: widget.isHubChat ? 'Chat with hub members...' : 'Message...',
-                          hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                          hintStyle: TextStyle(color: secondaryTextColor, fontSize: 14),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           border: InputBorder.none,
                         ),

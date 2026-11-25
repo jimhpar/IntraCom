@@ -53,15 +53,20 @@ class _DialerScreenState extends State<DialerScreen> {
     );
   }
 
-  Widget _buildDialKey(String digit, String subtext, {VoidCallback? onTap, VoidCallback? onLongPress}) {
+  Widget _buildDialKey(BuildContext context, String digit, String subtext, {VoidCallback? onTap, VoidCallback? onLongPress}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final keyBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final keyText = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final keySubtext = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70);
+
     return GestureDetector(
       onTap: onTap ?? () => _onDigitPressed(digit),
       onLongPress: onLongPress,
       child: Container(
         width: 78,
         height: 78,
-        decoration: const BoxDecoration(
-          color: IosTheme.dialerKeyDark,
+        decoration: BoxDecoration(
+          color: keyBg,
           shape: BoxShape.circle,
         ),
         child: Column(
@@ -69,21 +74,21 @@ class _DialerScreenState extends State<DialerScreen> {
           children: [
             Text(
               digit,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w400,
-                color: IosTheme.dialerKeyTextDark,
+                color: keyText,
                 height: 1.1,
               ),
             ),
             if (subtext.isNotEmpty)
               Text(
                 subtext,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.5,
-                  color: IosTheme.dialerKeySubtextDark,
+                  color: keySubtext,
                 ),
               ),
           ],
@@ -94,20 +99,27 @@ class _DialerScreenState extends State<DialerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white38 : const Color(0xFF8E8E93);
+    final enteredColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final placeholderColor = isDark ? Colors.white24 : Colors.black26;
+    final hintColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final subHintColor = isDark ? Colors.white38 : const Color(0xFFAEB0B5);
+    final iconColor = isDark ? Colors.white70 : const Color(0xFF3A3A3C);
+
     return Scaffold(
-      backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 20),
             // Header display
-            const Text(
+            Text(
               'INTRACOM DIALER',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 2,
-                color: Colors.white38,
+                color: titleColor,
               ),
             ),
             const Spacer(flex: 1),
@@ -124,7 +136,7 @@ class _DialerScreenState extends State<DialerScreen> {
                       style: TextStyle(
                         fontSize: _enteredNumber.isEmpty ? 26 : 38,
                         fontWeight: FontWeight.w300,
-                        color: _enteredNumber.isEmpty ? Colors.white24 : Colors.white,
+                        color: _enteredNumber.isEmpty ? placeholderColor : enteredColor,
                         letterSpacing: 1.5,
                       ),
                     ),
@@ -138,12 +150,12 @@ class _DialerScreenState extends State<DialerScreen> {
                 _enteredNumber.startsWith('+') 
                   ? 'Area Code: ${_enteredNumber.split("-").first}' 
                   : 'Format: +AreaCode-XXXXXXX',
-                style: const TextStyle(fontSize: 13, color: Colors.white54),
+                style: TextStyle(fontSize: 13, color: hintColor),
               )
             else
-              const Text(
+              Text(
                 'e.g. +1-6860499 (Dhaka) or +2-XXXXXXX',
-                style: TextStyle(fontSize: 13, color: Colors.white38),
+                style: TextStyle(fontSize: 13, color: subHintColor),
               ),
             const Spacer(flex: 1),
             // Dial pad (iOS Style)
@@ -154,27 +166,27 @@ class _DialerScreenState extends State<DialerScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildDialKey('1', ''),
-                      _buildDialKey('2', 'ABC'),
-                      _buildDialKey('3', 'DEF'),
+                      _buildDialKey(context, '1', ''),
+                      _buildDialKey(context, '2', 'ABC'),
+                      _buildDialKey(context, '3', 'DEF'),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildDialKey('4', 'GHI'),
-                      _buildDialKey('5', 'JKL'),
-                      _buildDialKey('6', 'MNO'),
+                      _buildDialKey(context, '4', 'GHI'),
+                      _buildDialKey(context, '5', 'JKL'),
+                      _buildDialKey(context, '6', 'MNO'),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildDialKey('7', 'PQRS'),
-                      _buildDialKey('8', 'TUV'),
-                      _buildDialKey('9', 'WXYZ'),
+                      _buildDialKey(context, '7', 'PQRS'),
+                      _buildDialKey(context, '8', 'TUV'),
+                      _buildDialKey(context, '9', 'WXYZ'),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -182,6 +194,7 @@ class _DialerScreenState extends State<DialerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildDialKey(
+                        context,
                         '+',
                         '*',
                         onTap: () => _onDigitPressed('+'),
@@ -190,8 +203,8 @@ class _DialerScreenState extends State<DialerScreen> {
                           _onDigitPressed('*');
                         },
                       ),
-                      _buildDialKey('0', ''),
-                      _buildDialKey('#', ''),
+                      _buildDialKey(context, '0', '+'),
+                      _buildDialKey(context, '#', ''),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -205,7 +218,7 @@ class _DialerScreenState extends State<DialerScreen> {
                         height: 78,
                         child: _enteredNumber.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.videocam_rounded, color: Colors.white70, size: 30),
+                                icon: Icon(Icons.videocam_rounded, color: iconColor, size: 30),
                                 onPressed: () => _makeCall(isVideo: true),
                               )
                             : const SizedBox.shrink(),
@@ -235,10 +248,10 @@ class _DialerScreenState extends State<DialerScreen> {
                             ? GestureDetector(
                                 onTap: _onBackspace,
                                 onLongPress: _onClear,
-                                child: const Center(
+                                child: Center(
                                   child: Icon(
                                     Icons.backspace_outlined,
-                                    color: Colors.white70,
+                                    color: iconColor,
                                     size: 28,
                                   ),
                                 ),

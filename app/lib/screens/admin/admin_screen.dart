@@ -103,6 +103,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   void _showEditUserDialog(Map<String, dynamic> user) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+
     final userId = user['id'].toString();
     final nameCtrl = TextEditingController(text: user['display_name'] ?? '');
     final numCtrl = TextEditingController(text: user['full_number'] ?? '');
@@ -116,7 +120,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          backgroundColor: IosTheme.cardDark,
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
@@ -125,7 +129,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               Expanded(
                 child: Text(
                   'Edit User: ${user['display_name'] ?? 'User'}',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: primaryTextColor, fontSize: 16, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -137,72 +141,72 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               children: [
                 TextField(
                   controller: nameCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor),
+                  decoration: InputDecoration(
                     labelText: 'Display Name',
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.person, color: IosTheme.accentBlue),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: secondaryTextColor),
+                    prefixIcon: const Icon(Icons.person, color: IosTheme.accentBlue),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: numCtrl,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
                     labelText: 'IntraCom Number',
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.dialpad, color: IosTheme.primaryGreen),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: secondaryTextColor),
+                    prefixIcon: const Icon(Icons.dialpad, color: IosTheme.primaryGreen),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: phoneCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor),
+                  decoration: InputDecoration(
                     labelText: 'Mobile Phone',
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.phone_android, color: Colors.white54),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: secondaryTextColor),
+                    prefixIcon: Icon(Icons.phone_android, color: secondaryTextColor),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: emailCtrl,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor),
+                  decoration: InputDecoration(
                     labelText: 'Email Address (Optional)',
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.email, color: Colors.white54),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: secondaryTextColor),
+                    prefixIcon: Icon(Icons.email, color: secondaryTextColor),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: passCtrl,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: primaryTextColor),
+                  decoration: InputDecoration(
                     labelText: 'Reset Password (Leave blank to keep current)',
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.lock_outline, color: Colors.orangeAccent),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: secondaryTextColor),
+                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.orangeAccent),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Admin Privileges', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: const Text('Grant full admin control', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  title: Text('Admin Privileges', style: TextStyle(color: primaryTextColor, fontSize: 14)),
+                  subtitle: Text('Grant full admin control', style: TextStyle(color: secondaryTextColor, fontSize: 11)),
                   value: isAdminVal,
                   activeTrackColor: Colors.amber,
                   onChanged: (val) => setDlgState(() => isAdminVal = val),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Suspend Account', style: TextStyle(color: Colors.white, fontSize: 14)),
-                  subtitle: const Text('Block calls and app access', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  title: Text('Suspend Account', style: TextStyle(color: primaryTextColor, fontSize: 14)),
+                  subtitle: Text('Block calls and app access', style: TextStyle(color: secondaryTextColor, fontSize: 11)),
                   value: isSuspendedVal,
                   activeTrackColor: Colors.redAccent,
                   onChanged: (val) => setDlgState(() => isSuspendedVal = val),
@@ -213,7 +217,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
@@ -312,6 +316,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   void _showManualAddUserSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final inputBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -321,7 +330,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -343,46 +352,46 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Manual User Registration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                        IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: Colors.white54)),
+                        Text('Manual User Registration', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
+                        IconButton(onPressed: () => Navigator.pop(ctx), icon: Icon(Icons.close, color: secondaryTextColor)),
                       ],
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: nameCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Full Name *', prefixIcon: Icon(Icons.person_outline, color: Colors.white54)),
+                      style: TextStyle(color: primaryTextColor),
+                      decoration: InputDecoration(labelText: 'Full Name *', labelStyle: TextStyle(color: secondaryTextColor), prefixIcon: Icon(Icons.person_outline, color: secondaryTextColor)),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: phoneCtrl,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: primaryTextColor),
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Mobile Phone *', prefixIcon: Icon(Icons.phone_outlined, color: Colors.white54)),
+                      decoration: InputDecoration(labelText: 'Mobile Phone *', labelStyle: TextStyle(color: secondaryTextColor), prefixIcon: Icon(Icons.phone_outlined, color: secondaryTextColor)),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: emailCtrl,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: primaryTextColor),
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email (Optional)', prefixIcon: Icon(Icons.email_outlined, color: Colors.white54)),
+                      decoration: InputDecoration(labelText: 'Email (Optional)', labelStyle: TextStyle(color: secondaryTextColor), prefixIcon: Icon(Icons.email_outlined, color: secondaryTextColor)),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: passCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(labelText: 'Password *', prefixIcon: Icon(Icons.lock_outline, color: Colors.white54)),
+                      style: TextStyle(color: primaryTextColor),
+                      decoration: InputDecoration(labelText: 'Password *', labelStyle: TextStyle(color: secondaryTextColor), prefixIcon: Icon(Icons.lock_outline, color: secondaryTextColor)),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Assign District (+Area Code):', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    Text('Assign District (+Area Code):', style: TextStyle(color: secondaryTextColor, fontSize: 13)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int>(
                       initialValue: selectedDistrict,
-                      dropdownColor: const Color(0xFF2C2C2E),
-                      style: const TextStyle(color: Colors.white),
+                      dropdownColor: Theme.of(context).cardColor,
+                      style: TextStyle(color: primaryTextColor),
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFF2C2C2E),
+                        fillColor: inputBg,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                       items: const [
@@ -456,39 +465,42 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   void _showBanUserDialog(String hubId, String hubName) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final numCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Ban User from "$hubName"', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        title: Text('Ban User from "$hubName"', style: TextStyle(color: primaryTextColor, fontSize: 16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: numCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Target User Number (e.g. +1-2985297)',
-                labelStyle: TextStyle(color: Colors.white54),
+                labelStyle: TextStyle(color: secondaryTextColor),
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: reasonCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Ban Reason',
-                labelStyle: TextStyle(color: Colors.white54),
+                labelStyle: TextStyle(color: secondaryTextColor),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: secondaryTextColor))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
@@ -512,13 +524,14 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Admin Control Panel', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
             onPressed: _loadAllAdminData,
           ),
         ],
@@ -526,7 +539,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           controller: _tabController,
           indicatorColor: IosTheme.primaryGreen,
           labelColor: IosTheme.primaryGreen,
-          unselectedLabelColor: Colors.white54,
+          unselectedLabelColor: isDark ? Colors.white54 : const Color(0xFF8E8E93),
           tabs: [
             Tab(text: 'Users (${_users.length})'),
             Tab(text: 'Hub Requests (${_hubRequests.where((r) => r['status'] == 'pending').length})'),
@@ -563,58 +576,71 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _buildStatsHeader() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final headerBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final headerBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: IosTheme.cardDark,
+        color: headerBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: headerBorder),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Total Users', '${_stats['total_users'] ?? _users.length}', Colors.white),
+          _buildStatItem('Total Users', '${_stats['total_users'] ?? _users.length}', primaryTextColor),
           _buildStatItem('Active', '${_stats['active_users'] ?? _users.where((u) => u['is_suspended'] != true).length}', IosTheme.primaryGreen),
           _buildStatItem('Suspended', '${_stats['suspended_users'] ?? _users.where((u) => u['is_suspended'] == true).length}', Colors.redAccent),
-          _buildStatItem('Pending Hubs', '${_stats['pending_requests'] ?? _hubRequests.where((r) => r['status'] == 'pending').length}', Colors.amberAccent),
+          _buildStatItem('Pending Hubs', '${_stats['pending_requests'] ?? _hubRequests.where((r) => r['status'] == 'pending').length}', Colors.amber),
         ],
       ),
     );
   }
 
   Widget _buildStatItem(String label, String value, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+        Text(label, style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : const Color(0xFF8E8E93))),
       ],
     );
   }
 
   Widget _buildUsersTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final cardBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: TextField(
             controller: _searchController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: primaryTextColor),
             decoration: InputDecoration(
               hintText: 'Search by name, number, or phone...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search, color: Colors.white38),
+              hintStyle: TextStyle(color: secondaryTextColor),
+              prefixIcon: Icon(Icons.search, color: secondaryTextColor),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.clear, color: Colors.white38),
+                icon: Icon(Icons.clear, color: secondaryTextColor),
                 onPressed: () {
                   _searchController.clear();
                   _loadAllAdminData();
                 },
               ),
               filled: true,
-              fillColor: IosTheme.cardDark,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              fillColor: cardBg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: cardBorder)),
               contentPadding: const EdgeInsets.symmetric(vertical: 0),
             ),
             onSubmitted: (_) => _loadAllAdminData(),
@@ -622,7 +648,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         ),
         Expanded(
           child: _users.isEmpty
-              ? const Center(child: Text('No users found', style: TextStyle(color: Colors.white38)))
+              ? Center(child: Text('No users found', style: TextStyle(color: secondaryTextColor)))
               : ListView.builder(
                   itemCount: _users.length,
                   padding: const EdgeInsets.only(bottom: 80),
@@ -635,18 +661,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: IosTheme.cardDark,
+                        color: cardBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSuspended ? Colors.redAccent.withValues(alpha: 0.3) : Colors.white10),
+                        border: Border.all(color: isSuspended ? Colors.redAccent.withValues(alpha: 0.3) : cardBorder),
                       ),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 22,
-                            backgroundColor: isSuspended ? Colors.red.withValues(alpha: 0.2) : const Color(0xFF2C2C2E),
+                            backgroundColor: isSuspended ? Colors.red.withValues(alpha: 0.2) : avatarBg,
                             child: Icon(
                               isAdmin ? Icons.admin_panel_settings : Icons.person,
-                              color: isSuspended ? Colors.redAccent : (isAdmin ? Colors.amberAccent : Colors.white70),
+                              color: isSuspended ? Colors.redAccent : (isAdmin ? Colors.amber : (isDark ? Colors.white70 : const Color(0xFF1C1C1E))),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -658,7 +684,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                                   children: [
                                     Text(
                                       u['display_name'] ?? 'User',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: primaryTextColor),
                                     ),
                                     if (isAdmin) ...[
                                       const SizedBox(width: 6),
@@ -705,7 +731,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                                 const SizedBox(height: 2),
                                 Text(
                                   'Area: ${u['district_name'] ?? ''} • Phone: ${u['phone']} ${u['email'] != '' ? '• ${u['email']}' : ''}',
-                                  style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                  style: TextStyle(fontSize: 11, color: secondaryTextColor),
                                 ),
                               ],
                             ),
@@ -747,8 +773,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _buildHubRequestsTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final descTextColor = isDark ? Colors.white70 : const Color(0xFF3A3A3C);
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final cardBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+
     if (_hubRequests.isEmpty) {
-      return const Center(child: Text('No hub requests found', style: TextStyle(color: Colors.white38)));
+      return Center(child: Text('No hub requests found', style: TextStyle(color: secondaryTextColor)));
     }
     return ListView.builder(
       itemCount: _hubRequests.length,
@@ -761,9 +794,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: IosTheme.cardDark,
+            color: cardBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,7 +807,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                   Expanded(
                     child: Text(
                       req['name'] ?? 'Untitled Hub',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                     ),
                   ),
                   Container(
@@ -799,11 +832,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 ],
               ),
               const SizedBox(height: 6),
-              Text(req['description'] ?? 'No description', style: const TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(req['description'] ?? 'No description', style: TextStyle(fontSize: 13, color: descTextColor)),
               const SizedBox(height: 8),
               Text(
                 'Requester: ${req['requester_name']} (${req['requester_num']}) • Area: ${req['district_name']}',
-                style: const TextStyle(fontSize: 11, color: Colors.white38),
+                style: TextStyle(fontSize: 11, color: secondaryTextColor),
               ),
               if (status == 'pending') ...[
                 const SizedBox(height: 12),
@@ -838,8 +871,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _buildModerationTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final descTextColor = isDark ? Colors.white70 : const Color(0xFF3A3A3C);
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final cardBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+
     if (_publicHubs.isEmpty) {
-      return const Center(child: Text('No active public hubs to moderate', style: TextStyle(color: Colors.white38)));
+      return Center(child: Text('No active public hubs to moderate', style: TextStyle(color: secondaryTextColor)));
     }
     return ListView.builder(
       itemCount: _publicHubs.length,
@@ -850,9 +890,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: IosTheme.cardDark,
+            color: cardBg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: cardBorder),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -862,7 +902,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 children: [
                   Text(
                     hub['name'] ?? 'Public Hub',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                   ),
                   Text(
                     '${hub['member_count'] ?? 0} members',
@@ -871,9 +911,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 ],
               ),
               const SizedBox(height: 4),
-              Text(hub['description'] ?? '', style: const TextStyle(fontSize: 13, color: Colors.white70)),
+              Text(hub['description'] ?? '', style: TextStyle(fontSize: 13, color: descTextColor)),
               const SizedBox(height: 6),
-              Text('Owner: ${hub['owner_name']} • Region: ${hub['district_name']}', style: const TextStyle(fontSize: 11, color: Colors.white38)),
+              Text('Owner: ${hub['owner_name']} • Region: ${hub['district_name']}', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

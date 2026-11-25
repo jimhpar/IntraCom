@@ -114,12 +114,17 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
 
   // Show Users Modal with Add to Contact option
   void _showHubUsersModal(Map<String, dynamic> hub) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final btnBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
     final hubId = hub['id'].toString();
     final hubName = hub['name'] ?? 'Hub';
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: IosTheme.cardDark,
+      backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
@@ -142,17 +147,17 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                       Expanded(
                         child: Text(
                           '$hubName • Members',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                        icon: Icon(Icons.close, color: secondaryTextColor, size: 20),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
-                  const Divider(color: Colors.white12),
+                  Divider(color: isDark ? Colors.white12 : const Color(0xFFE5E5EA)),
                   const SizedBox(height: 8),
                   if (isLoading)
                     const Padding(
@@ -160,10 +165,10 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                       child: Center(child: CircularProgressIndicator(color: IosTheme.primaryGreen)),
                     )
                   else if (members.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
                       child: Center(
-                        child: Text('No other members currently in this hub.', style: TextStyle(color: Colors.white38)),
+                        child: Text('No other members currently in this hub.', style: TextStyle(color: secondaryTextColor)),
                       ),
                     )
                   else
@@ -173,7 +178,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                         builder: (context, onlineUsers, child) {
                           return ListView.separated(
                             itemCount: members.length,
-                            separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                            separatorBuilder: (context, index) => Divider(color: isDark ? Colors.white10 : const Color(0xFFE5E5EA), height: 1),
                             itemBuilder: (context, i) {
                               final user = members[i];
                               final userNum = user['full_number'] ?? '';
@@ -187,10 +192,10 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                                   children: [
                                     CircleAvatar(
                                       radius: 20,
-                                      backgroundColor: const Color(0xFF2C2C2E),
+                                      backgroundColor: avatarBg,
                                       child: Text(
                                         userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                        style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                     Positioned(
@@ -202,7 +207,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                                         decoration: BoxDecoration(
                                           color: isOnline ? IosTheme.primaryGreen : Colors.grey,
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.black, width: 2),
+                                          border: Border.all(color: isDark ? Colors.black : Colors.white, width: 2),
                                         ),
                                       ),
                                     ),
@@ -210,15 +215,15 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                                 ),
                                 title: Text(
                                   userName,
-                                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 14),
+                                  style: TextStyle(fontWeight: FontWeight.w600, color: primaryTextColor, fontSize: 14),
                                 ),
                                 subtitle: Text(
                                   '$userNum ${district.isNotEmpty ? '• $district' : ''}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+                                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
                                 ),
                                 trailing: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2C2C2E),
+                                    backgroundColor: btnBg,
                                     foregroundColor: IosTheme.primaryGreen,
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -260,39 +265,48 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
 
   // User submits a request to Admin to create a new Public Hub
   void _showRequestPublicHubDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Request Public Hub'),
+        title: Text('Request Public Hub', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Public Hubs require admin approval before becoming visible to all users.',
-              style: TextStyle(fontSize: 12, color: Colors.white54),
+              style: TextStyle(fontSize: 12, color: secondaryTextColor),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Hub Name',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: 'e.g. Chittagong Tech Lounge',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: descCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Description / Purpose',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: 'What is this public hub for?',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -300,7 +314,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: IosTheme.accentBlue),
@@ -331,39 +345,48 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
 
   // User creates a Private Table and adds member IntraCom numbers
   void _showCreatePrivateTableDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final nameCtrl = TextEditingController();
     final membersCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Create Private Table'),
+        title: Text('Create Private Table', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Private tables are only visible to you and the members you add.',
-              style: TextStyle(fontSize: 12, color: Colors.white54),
+              style: TextStyle(fontSize: 12, color: secondaryTextColor),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: nameCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Table Name',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: 'e.g. My Secret Voice Room',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: membersCtrl,
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Add Member Numbers (comma separated)',
+                labelStyle: TextStyle(color: secondaryTextColor),
                 hintText: '+1-6860499, +2-1000001',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -371,7 +394,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
@@ -414,20 +437,22 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hangout Hubs'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
             onPressed: _loadHubs,
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: IosTheme.primaryGreen,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white38,
+          labelColor: isDark ? Colors.white : IosTheme.primaryGreen,
+          unselectedLabelColor: isDark ? Colors.white38 : const Color(0xFF8E8E93),
           tabs: const [
             Tab(text: '🌐 Public Hubs'),
             Tab(text: '🔒 Private Tables'),
@@ -498,16 +523,20 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   }
 
   Widget _buildPublicHubsView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionBarBg = isDark ? const Color(0xFF141416) : const Color(0xFFE5E5EA);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF6C6C70);
+
     return Column(
       children: [
         // Action Bar for Public Hubs
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: const Color(0xFF141416),
+          color: actionBarBg,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Open Community Channels', style: TextStyle(fontSize: 13, color: Colors.white54)),
+              Text('Open Community Channels', style: TextStyle(fontSize: 13, color: secondaryTextColor)),
               TextButton.icon(
                 icon: const Icon(Icons.add_circle_outline, size: 18, color: IosTheme.accentBlue),
                 label: const Text('Request Hub', style: TextStyle(color: IosTheme.accentBlue, fontSize: 13)),
@@ -531,16 +560,20 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   }
 
   Widget _buildPrivateTablesView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final actionBarBg = isDark ? const Color(0xFF141416) : const Color(0xFFE5E5EA);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF6C6C70);
+
     return Column(
       children: [
         // Action Bar for Private Tables
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: const Color(0xFF141416),
+          color: actionBarBg,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Your Private Lounges', style: TextStyle(fontSize: 13, color: Colors.white54)),
+              Text('Your Private Lounges', style: TextStyle(fontSize: 13, color: secondaryTextColor)),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: IosTheme.primaryGreen,
@@ -556,8 +589,8 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
         ),
         Expanded(
           child: _privateTables.isEmpty
-              ? const Center(
-                  child: Text('No private tables yet. Create one or get invited!', style: TextStyle(color: Colors.white38)),
+              ? Center(
+                  child: Text('No private tables yet. Create one or get invited!', style: TextStyle(color: secondaryTextColor)),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -573,6 +606,15 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   }
 
   Widget _buildHubCard(Map<String, dynamic> hub, {required bool isPrivate}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final descTextColor = isDark ? Colors.white70 : const Color(0xFF3A3A3C);
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final cardBorder = isDark ? Colors.white10 : const Color(0xFFE5E5EA);
+    final chatBtnBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7);
+    final usersBtnBorder = isDark ? Colors.white24 : const Color(0xFFD1D1D6);
+
     final hubId = hub['id'].toString();
     final isConnected = _activeHubId == hubId;
     final name = hub['name'] ?? 'Hub';
@@ -581,10 +623,10 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: IosTheme.cardDark,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isConnected ? IosTheme.primaryGreen : Colors.white.withValues(alpha: 0.08),
+          color: isConnected ? IosTheme.primaryGreen : cardBorder,
           width: isConnected ? 1.5 : 1,
         ),
       ),
@@ -595,17 +637,17 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
             leading: CircleAvatar(
               backgroundColor: isConnected
                   ? IosTheme.primaryGreen.withValues(alpha: 0.2)
-                  : (isPrivate ? IosTheme.accentBlue.withValues(alpha: 0.15) : Colors.white12),
+                  : (isPrivate ? IosTheme.accentBlue.withValues(alpha: 0.15) : (isDark ? Colors.white12 : const Color(0xFFE5E5EA))),
               child: Icon(
                 isPrivate ? Icons.lock : Icons.volume_up_rounded,
-                color: isConnected ? IosTheme.primaryGreen : (isPrivate ? IosTheme.accentBlue : Colors.white70),
+                color: isConnected ? IosTheme.primaryGreen : (isPrivate ? IosTheme.accentBlue : (isDark ? Colors.white70 : const Color(0xFF1C1C1E))),
                 size: 20,
               ),
             ),
-            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+            title: Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: primaryTextColor)),
             subtitle: Text(
               district,
-              style: const TextStyle(fontSize: 12, color: Colors.white54),
+              style: TextStyle(fontSize: 12, color: secondaryTextColor),
             ),
             trailing: ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -621,7 +663,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
           if (hub['description'] != null && hub['description'].toString().isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(hub['description'], style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              child: Text(hub['description'], style: TextStyle(fontSize: 12, color: descTextColor)),
             ),
           const SizedBox(height: 12),
 
@@ -634,8 +676,8 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white24),
+                      foregroundColor: primaryTextColor,
+                      side: BorderSide(color: usersBtnBorder),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
@@ -650,8 +692,8 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2C2C2E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: chatBtnBg,
+                      foregroundColor: primaryTextColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),

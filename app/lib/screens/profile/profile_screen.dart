@@ -49,38 +49,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditProfileDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final nameCtrl = TextEditingController(text: _displayName);
     final bioCtrl = TextEditingController(text: _bio);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Edit Profile', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: primaryTextColor),
+              decoration: InputDecoration(
                 labelText: 'Display Name',
-                labelStyle: TextStyle(color: Colors.white54),
-                prefixIcon: Icon(Icons.person, color: Colors.white54),
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: secondaryTextColor),
+                prefixIcon: Icon(Icons.person, color: secondaryTextColor),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: bioCtrl,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: primaryTextColor),
               maxLines: 2,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Bio / Status',
-                labelStyle: TextStyle(color: Colors.white54),
-                prefixIcon: Icon(Icons.edit_note, color: Colors.white54),
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: secondaryTextColor),
+                prefixIcon: Icon(Icons.edit_note, color: secondaryTextColor),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -88,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
@@ -124,6 +127,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showChangePasswordDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     final confirmPassCtrl = TextEditingController();
@@ -134,13 +140,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
-          backgroundColor: IosTheme.cardDark,
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_reset, color: IosTheme.primaryGreen),
-              SizedBox(width: 8),
-              Text('Change Password', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Icon(Icons.lock_reset, color: IosTheme.primaryGreen),
+              const SizedBox(width: 8),
+              Text('Change Password', style: TextStyle(color: primaryTextColor, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
           content: Column(
@@ -149,13 +155,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: oldPassCtrl,
                 obscureText: obscureOld,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryTextColor),
                 decoration: InputDecoration(
                   labelText: 'Current Password',
-                  labelStyle: const TextStyle(color: Colors.white54),
+                  labelStyle: TextStyle(color: secondaryTextColor),
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: Icon(obscureOld ? Icons.visibility_off : Icons.visibility, color: Colors.white54),
+                    icon: Icon(obscureOld ? Icons.visibility_off : Icons.visibility, color: secondaryTextColor),
                     onPressed: () => setDlgState(() => obscureOld = !obscureOld),
                   ),
                 ),
@@ -164,13 +170,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: newPassCtrl,
                 obscureText: obscureNew,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryTextColor),
                 decoration: InputDecoration(
                   labelText: 'New Password',
-                  labelStyle: const TextStyle(color: Colors.white54),
+                  labelStyle: TextStyle(color: secondaryTextColor),
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, color: Colors.white54),
+                    icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, color: secondaryTextColor),
                     onPressed: () => setDlgState(() => obscureNew = !obscureNew),
                   ),
                 ),
@@ -179,11 +185,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: confirmPassCtrl,
                 obscureText: obscureNew,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                style: TextStyle(color: primaryTextColor),
+                decoration: InputDecoration(
                   labelText: 'Confirm New Password',
-                  labelStyle: TextStyle(color: Colors.white54),
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: secondaryTextColor),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -191,7 +197,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
@@ -243,6 +249,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showThemeDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+
     final themes = [
       {'name': 'iOS Dark Dial Mode', 'desc': 'Pure OLED Black & Green Accents'},
       {'name': 'Midnight Navy', 'desc': 'Deep Ocean Blue & Cyan Accents'},
@@ -252,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: IosTheme.cardDark,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -260,14 +270,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Choose App Theme', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text('Choose App Theme', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
             const SizedBox(height: 12),
             ...themes.map((t) {
               final selected = IosTheme.themeNameNotifier.value == t['name'];
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                title: Text(t['name']!, style: TextStyle(color: selected ? IosTheme.primaryGreen : Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text(t['desc']!, style: const TextStyle(fontSize: 12, color: Colors.white54)),
+                title: Text(t['name']!, style: TextStyle(color: selected ? IosTheme.primaryGreen : primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text(t['desc']!, style: TextStyle(fontSize: 12, color: secondaryTextColor)),
                 trailing: selected ? const Icon(Icons.check_circle, color: IosTheme.primaryGreen) : null,
                 onTap: () {
                   IosTheme.setTheme(t['name']!);
@@ -283,15 +293,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleLogout() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Log Out', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to sign out from IntraCom?', style: TextStyle(color: Colors.white70)),
+        title: Text('Log Out', style: TextStyle(color: primaryTextColor)),
+        content: Text('Are you sure you want to sign out from IntraCom?', style: TextStyle(color: secondaryTextColor)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: secondaryTextColor))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(ctx, true),
@@ -314,12 +328,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final avatarBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final pillBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final pillBorder = isDark ? Colors.white12 : const Color(0xFFE5E5EA);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white70),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
             onPressed: _loadFreshProfile,
           ),
           IconButton(
@@ -338,10 +359,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 48,
-                    backgroundColor: const Color(0xFF2C2C2E),
+                    backgroundColor: avatarBg,
                     child: Text(
                       _displayName.isNotEmpty ? _displayName[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: primaryTextColor),
                     ),
                   ),
                   Positioned(
@@ -371,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       Text(
                         _displayName,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryTextColor),
                       ),
                       if (_isAdmin) ...[
                         const SizedBox(width: 8),
@@ -405,9 +426,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: IosTheme.cardDark,
+                        color: pillBg,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white12),
+                        border: Border.all(color: pillBorder),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -422,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(Icons.copy, size: 14, color: Colors.white54),
+                          Icon(Icons.copy, size: 14, color: secondaryTextColor),
                         ],
                       ),
                     ),
@@ -430,7 +451,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 6),
                   Text(
                     _district,
-                    style: const TextStyle(fontSize: 13, color: Colors.white54),
+                    style: TextStyle(fontSize: 13, color: secondaryTextColor),
                   ),
                   if (_bio.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -439,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         _bio,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 13, color: Colors.white70, fontStyle: FontStyle.italic),
+                        style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C), fontStyle: FontStyle.italic),
                       ),
                     ),
                   ],
@@ -450,8 +471,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Admin Section (Visible to Admins)
             if (_isAdmin) ...[
-              _buildSectionHeader('ADMINISTRATION'),
+              _buildSectionHeader('ADMINISTRATION', isDark: isDark),
               _buildSettingsTile(
+                context,
                 Icons.admin_panel_settings,
                 'Admin Control Panel',
                 'Manage Users, Hub Requests & Moderation',
@@ -460,7 +482,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     context,
                     MaterialPageRoute(builder: (_) => const AdminScreen()),
                   );
-                  // Refresh profile in case Admin edited their own user account
                   _loadFreshProfile();
                 },
                 iconColor: Colors.amber,
@@ -469,8 +490,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
 
             // Account & Security Settings
-            _buildSectionHeader('ACCOUNT & SECURITY'),
+            _buildSectionHeader('ACCOUNT & SECURITY', isDark: isDark),
             _buildSettingsTile(
+              context,
               Icons.badge_outlined,
               'Edit Name & Bio',
               _displayName,
@@ -478,6 +500,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               iconColor: IosTheme.accentBlue,
             ),
             _buildSettingsTile(
+              context,
               Icons.lock_reset,
               'Change Password',
               'Update your IntraCom account password',
@@ -487,11 +510,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 16),
             // Application & Themes Settings
-            _buildSectionHeader('APPLICATION SETTINGS'),
+            _buildSectionHeader('APPLICATION SETTINGS', isDark: isDark),
             ValueListenableBuilder<String>(
               valueListenable: IosTheme.themeNameNotifier,
               builder: (context, currentThemeName, child) {
                 return _buildSettingsTile(
+                  context,
                   Icons.palette_outlined,
                   'Theme',
                   currentThemeName,
@@ -501,12 +525,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             _buildSettingsTile(
+              context,
               Icons.notifications_outlined,
               'Push Notifications',
               'FCM / APNs Ready',
               () {},
             ),
             _buildSettingsTile(
+              context,
               Icons.info_outline,
               'About IntraCom',
               'v1.2.0 (Independent, Zero 3rd-Party Relay)',
@@ -515,10 +541,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 20),
             // System & Calling
-            _buildSectionHeader('SYSTEM & CALLING'),
-            _buildSettingsTile(Icons.wifi_tethering, 'Oracle Server Relay', 'Connected (129.225.125.127:8080)', () {}),
-            _buildSettingsTile(Icons.security, 'WebRTC Encryption', 'DTLS-SRTP Enabled', () {}),
-            _buildSettingsTile(Icons.volume_up_outlined, 'Audio & Codec', 'Opus HD Voice (48kHz)', () {}),
+            _buildSectionHeader('SYSTEM & CALLING', isDark: isDark),
+            _buildSettingsTile(context, Icons.wifi_tethering, 'Oracle Server Relay', 'Connected (129.225.125.127:8080)', () {}),
+            _buildSettingsTile(context, Icons.security, 'WebRTC Encryption', 'DTLS-SRTP Enabled', () {}),
+            _buildSettingsTile(context, Icons.volume_up_outlined, 'Audio & Codec', 'Opus HD Voice (48kHz)', () {}),
 
             const SizedBox(height: 24),
             Padding(
@@ -543,15 +569,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  static Widget _buildSectionHeader(String title) {
+  static Widget _buildSectionHeader(String title, {bool isDark = true}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8E8E93),
+          color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70),
           letterSpacing: 1,
         ),
       ),
@@ -559,23 +585,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   static Widget _buildSettingsTile(
+    BuildContext context,
     IconData icon,
     String title,
     String subtitle,
     VoidCallback onTap, {
     Color? iconColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+    final tileBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    final tileBorder = isDark ? null : Border.all(color: const Color(0xFFE5E5EA));
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
       decoration: BoxDecoration(
-        color: IosTheme.cardDark,
+        color: tileBg,
         borderRadius: BorderRadius.circular(10),
+        border: tileBorder,
       ),
       child: ListTile(
         leading: Icon(icon, color: iconColor ?? IosTheme.accentBlue),
-        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.white54)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white24),
+        title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: primaryTextColor)),
+        subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: secondaryTextColor)),
+        trailing: Icon(Icons.arrow_forward_ios, size: 14, color: isDark ? Colors.white24 : const Color(0xFFC7C7CC)),
         onTap: onTap,
       ),
     );
