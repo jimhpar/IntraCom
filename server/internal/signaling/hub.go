@@ -194,12 +194,24 @@ func (h *Hub) FindClient(target string) (*Client, bool) {
 	}
 	h.mu.RUnlock()
 
-	// 3. Database lookup if target is phone number (e.g. mobile "01799887766")
+	// 3. Database lookup if target is phone number, clean digits, or subscriber portion
 	if db.Pool != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		var fullNumber string
-		err := db.Pool.QueryRow(ctx, "SELECT full_number FROM users WHERE phone = $1 OR full_number = $1 OR full_number = $2 LIMIT 1", target, "+"+target).Scan(&fullNumber)
+		query := `
+			SELECT full_number FROM users 
+			WHERE phone = $1 
+			   OR full_number = $1 
+			   OR full_number = $2
+			   OR user_number = $1
+			   OR ($3 != '' AND user_number = $3)
+			   OR ($3 != '' AND phone = $3)
+			   OR ($3 != '' AND REPLACE(REPLACE(full_number, '+', ''), '-', '') = $3)
+			   OR ($3 != '' AND full_number LIKE '%-' || $3)
+			LIMIT 1
+		`
+		err := db.Pool.QueryRow(ctx, query, target, "+"+target, cleanTarget).Scan(&fullNumber)
 		if err == nil && fullNumber != "" {
 			h.mu.RLock()
 			defer h.mu.RUnlock()
