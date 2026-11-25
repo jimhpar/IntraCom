@@ -207,7 +207,10 @@ func LoginHandler(c *fiber.Ctx) error {
 		   OR ($2 != '' AND user_number = $2)
 		   OR ($2 != '' AND phone = $2)
 		   OR ($2 != '' AND REPLACE(REPLACE(full_number, '+', ''), '-', '') = $2)
+		   OR ($2 != '' AND full_number LIKE '%-' || $2)
+		   OR ($2 != '' AND REPLACE(REPLACE(full_number, '+', ''), '-', '') LIKE '%' || $2)
 		   OR (LOWER(display_name) = LOWER($1) AND is_admin = TRUE)
+		   OR (LOWER(display_name) = LOWER($1))
 		LIMIT 1
 	`
 	err := db.Pool.QueryRow(ctx, query, req.Identifier, cleanDigits).Scan(
