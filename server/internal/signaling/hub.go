@@ -1,18 +1,23 @@
 package signaling
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gofiber/websocket/v2"
+	"intracom-server/internal/db"
 )
 
 // SignalMessage defines the standard signaling packet format for WebRTC & Hangouts
 type SignalMessage struct {
 	Type        string      `json:"type"`                  // call_offer, call_answer, call_ice, call_ringing, call_hangup, call_reject, hangout_join, etc.
 	From        string      `json:"from,omitempty"`        // Sender's IntraCom number (e.g. +1-3847291)
-	To          string      `json:"to,omitempty"`          // Recipient's IntraCom number
+	CallerName  string      `json:"caller_name,omitempty"` // Sender's display name
+	To          string      `json:"to,omitempty"`          // Recipient's IntraCom number or phone
 	CallType    string      `json:"call_type,omitempty"`   // audio, video
 	Payload     interface{} `json:"payload,omitempty"`     // SDP offer/answer or ICE candidate
 	HangoutID   string      `json:"hangout_id,omitempty"`  // Voice Hub ID
@@ -20,10 +25,11 @@ type SignalMessage struct {
 }
 
 type Client struct {
-	FullNumber string
-	Conn       *websocket.Conn
-	Send       chan []byte
-	Hub        *Hub
+	FullNumber  string
+	DisplayName string
+	Conn        *websocket.Conn
+	Send        chan []byte
+	Hub         *Hub
 }
 
 type Hub struct {
@@ -151,22 +157,82 @@ func (h *Hub) BroadcastHubMessage(hangoutID string, msg SignalMessage) {
 	}
 }
 
+func cleanNumber(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// FindClient locates a connected client by exact full_number, clean digits, or phone lookup
+func (h *Hub) FindClient(target string) (*Client, bool) {
+	h.mu.RLock()
+	// 1. Direct exact match (e.g. "+1-1111111")
+	if client, ok := h.clients[target]; ok {
+		h.mu.RUnlock()
+		return client, true
+	}
+
+	// 2. Normalized match (strip +, -, spaces)
+	cleanTarget := cleanNumber(target)
+	if cleanTarget != "" {
+		for num, client := range h.clients {
+			cleanNum := cleanNumber(num)
+			if cleanNum == cleanTarget {
+				h.mu.RUnlock()
+				return client, true
+			}
+			// If target is 7 digits (subscriber portion), match suffix
+			if len(cleanTarget) == 7 && strings.HasSuffix(cleanNum, cleanTarget) {
+				h.mu.RUnlock()
+				return client, true
+			}
+		}
+	}
+	h.mu.RUnlock()
+
+	// 3. Database lookup if target is phone number (e.g. mobile "01799887766")
+	if db.Pool != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		var fullNumber string
+		err := db.Pool.QueryRow(ctx, "SELECT full_number FROM users WHERE phone = $1 OR full_number = $1 OR full_number = $2 LIMIT 1", target, "+"+target).Scan(&fullNumber)
+		if err == nil && fullNumber != "" {
+			h.mu.RLock()
+			defer h.mu.RUnlock()
+			if client, ok := h.clients[fullNumber]; ok {
+				return client, true
+			}
+			cleanDbNum := cleanNumber(fullNumber)
+			for num, client := range h.clients {
+				if cleanNumber(num) == cleanDbNum {
+					return client, true
+				}
+			}
+		}
+	}
+
+	return nil, false
+}
+
 // RouteMessage sends signaling packets (offer, answer, ice, reject, hangup) directly to the target user
 func (h *Hub) RouteMessage(msg SignalMessage) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
 	// 1:1 Calling Signal
 	if msg.To != "" {
-		recipient, ok := h.clients[msg.To]
+		recipient, ok := h.FindClient(msg.To)
 		if ok {
 			data, err := json.Marshal(msg)
 			if err == nil {
+				log.Printf("[Signaling] Routed %s from %s to %s (%s)", msg.Type, msg.From, recipient.FullNumber, recipient.DisplayName)
 				recipient.Send <- data
 			}
 		} else {
+			log.Printf("[Signaling] User unavailable for %s: Target=%s, Caller=%s", msg.Type, msg.To, msg.From)
 			// Target is offline -> notify caller
-			caller, hasCaller := h.clients[msg.From]
+			caller, hasCaller := h.FindClient(msg.From)
 			if hasCaller {
 				offlineMsg := SignalMessage{
 					Type: "call_unavailable",
@@ -174,7 +240,7 @@ func (h *Hub) RouteMessage(msg SignalMessage) {
 					To:   msg.From,
 					Payload: map[string]string{
 						"target": msg.To,
-						"reason": "User is currently offline",
+						"reason": "User is currently offline or unreachable",
 					},
 				}
 				bytes, _ := json.Marshal(offlineMsg)

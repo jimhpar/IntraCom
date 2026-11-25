@@ -2,7 +2,9 @@
     email admin@intracom.local
 }
 
-:80 {
+https://129.225.125.127, :443 {
+    tls /etc/caddy/server.crt /etc/caddy/server.key
+
     handle /api/* {
         reverse_proxy api:8080
     }
@@ -16,5 +18,20 @@
         root * /srv/web
         try_files {path} /index.html
         file_server
+    }
+}
+
+:80 {
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+    handle /ws {
+        reverse_proxy api:8080
+    }
+    handle /health {
+        reverse_proxy api:8080
+    }
+    handle {
+        redir https://{host}{uri} permanent
     }
 }

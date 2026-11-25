@@ -66,6 +66,15 @@ class _InCallScreenState extends State<InCallScreen> {
         }
       } else if (type == 'call_hangup' && (from == widget.targetNumber || from != null)) {
         _onPeerHangup();
+      } else if (type == 'call_unavailable') {
+        _callTimer?.cancel();
+        if (mounted) {
+          final reason = msg['payload']?['reason'] ?? 'User is currently offline or unreachable';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(reason), backgroundColor: Colors.redAccent, duration: const Duration(seconds: 3)),
+          );
+          Navigator.pop(context);
+        }
       }
     });
   }

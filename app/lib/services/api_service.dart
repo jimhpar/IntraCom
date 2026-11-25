@@ -1,12 +1,29 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Live Oracle Cloud Server Endpoint
-  static const String baseUrl = 'http://129.225.125.127:8080';
-  static const String wsUrl = 'ws://129.225.125.127:8080/ws';
+  // Live Oracle Cloud Server Endpoint - dynamically adapts to current origin (HTTP or HTTPS)
+  static String get baseUrl {
+    if (kIsWeb) {
+      final loc = Uri.base;
+      final portPart = (loc.port == 80 || loc.port == 443 || loc.port == 0) ? '' : ':${loc.port}';
+      return '${loc.scheme}://${loc.host}$portPart';
+    }
+    return 'https://129.225.125.127';
+  }
 
-  final Dio _dio = Dio(BaseOptions(
+  static String get wsUrl {
+    if (kIsWeb) {
+      final loc = Uri.base;
+      final wsScheme = loc.scheme == 'https' ? 'wss' : 'ws';
+      final portPart = (loc.port == 80 || loc.port == 443 || loc.port == 0) ? '' : ':${loc.port}';
+      return '$wsScheme://${loc.host}$portPart/ws';
+    }
+    return 'wss://129.225.125.127/ws';
+  }
+
+  late final Dio _dio = Dio(BaseOptions(
     baseUrl: baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),

@@ -412,22 +412,27 @@ func WebSocketHandler(c *websocket.Conn) {
 		return
 	}
 
-	// Verify suspension status before allowing connection
+	// Verify suspension status and fetch display name before allowing connection
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	var isSuspended bool
-	_ = db.Pool.QueryRow(ctx, "SELECT is_suspended FROM users WHERE id = $1", claims.UserID).Scan(&isSuspended)
+	var displayName string
+	_ = db.Pool.QueryRow(ctx, "SELECT display_name, is_suspended FROM users WHERE id = $1", claims.UserID).Scan(&displayName, &isSuspended)
 	cancel()
 	if isSuspended {
 		log.Printf("WS connection rejected: user %s is suspended", claims.FullNumber)
 		c.Close()
 		return
 	}
+	if displayName == "" {
+		displayName = "IntraCom User"
+	}
 
 	client := &signaling.Client{
-		FullNumber: claims.FullNumber,
-		Conn:       c,
-		Send:       make(chan []byte, 256),
-		Hub:        signaling.GlobalHub,
+		FullNumber:  claims.FullNumber,
+		DisplayName: displayName,
+		Conn:        c,
+		Send:        make(chan []byte, 256),
+		Hub:         signaling.GlobalHub,
 	}
 
 	signaling.GlobalHub.RegisterClient(client)
@@ -455,6 +460,7 @@ func WebSocketHandler(c *websocket.Conn) {
 		}
 
 		signal.From = client.FullNumber // Enforce authentic sender identity
+		signal.CallerName = client.DisplayName
 		signal.Timestamp = time.Now().UnixMilli()
 
 		switch signal.Type {

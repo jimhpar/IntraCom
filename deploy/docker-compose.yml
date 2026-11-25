@@ -8,6 +8,8 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./web:/srv/web
+      - ./server.crt:/etc/caddy/server.crt:ro
+      - ./server.key:/etc/caddy/server.key:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

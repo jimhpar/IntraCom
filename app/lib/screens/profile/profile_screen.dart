@@ -542,7 +542,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
             // System & Calling
             _buildSectionHeader('SYSTEM & CALLING', isDark: isDark),
-            _buildSettingsTile(context, Icons.wifi_tethering, 'Oracle Server Relay', 'Connected (129.225.125.127:8080)', () {}),
+            _buildSettingsTile(context, Icons.wifi_tethering, 'Oracle Server Relay', 'Connected (Secure HTTPS / WSS Relay)', () {}),
             _buildSettingsTile(context, Icons.security, 'WebRTC Encryption', 'DTLS-SRTP Enabled', () {}),
             _buildSettingsTile(context, Icons.volume_up_outlined, 'Audio & Codec', 'Opus HD Voice (48kHz)', () {}),
 

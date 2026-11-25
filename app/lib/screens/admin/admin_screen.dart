@@ -59,27 +59,31 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Future<void> _toggleSuspend(String userId, String userName, bool currentStatus) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(currentStatus ? 'Unsuspend User?' : 'Suspend User?', style: const TextStyle(color: Colors.white)),
+        title: Text(currentStatus ? 'Unsuspend User?' : 'Suspend User?', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
         content: Text(
           'Are you sure you want to ${currentStatus ? 'unsuspend' : 'suspend'} $userName?',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: secondaryTextColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: currentStatus ? IosTheme.primaryGreen : Colors.redAccent,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(currentStatus ? 'Unsuspend' : 'Suspend', style: const TextStyle(color: Colors.white)),
+            child: Text(currentStatus ? 'Unsuspend' : 'Suspend', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -271,27 +275,34 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   Future<void> _reviewHubRequest(String requestId, String action, String hubName) async {
     String note = '';
     if (action == 'reject') {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+      final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
       final noteCtrl = TextEditingController();
       final proceed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: IosTheme.cardDark,
+          backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Reject Hub Request', style: TextStyle(color: Colors.white)),
+          title: Text('Reject Hub Request', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold)),
           content: TextField(
             controller: noteCtrl,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: primaryTextColor),
+            decoration: InputDecoration(
               hintText: 'Reason for rejection (optional)',
-              hintStyle: TextStyle(color: Colors.white38),
+              hintStyle: TextStyle(color: secondaryTextColor),
+              border: const OutlineInputBorder(),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: TextStyle(color: secondaryTextColor)),
+            ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Reject'),
+              child: const Text('Reject', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
