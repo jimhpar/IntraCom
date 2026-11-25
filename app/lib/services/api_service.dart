@@ -361,6 +361,60 @@ class ApiService {
     }
   }
 
+  // Direct 1-on-1 Messages APIs
+  Future<List<Map<String, dynamic>>> getConversations() async {
+    try {
+      final res = await _dio.get('/api/v1/messages/conversations');
+      if (res.data['success'] == true && res.data['data'] is List) {
+        return List<Map<String, dynamic>>.from(res.data['data']);
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDirectChat(String peerNumber) async {
+    try {
+      final res = await _dio.get('/api/v1/messages/chat/$peerNumber');
+      if (res.data != null && res.data['messages'] is List) {
+        return List<Map<String, dynamic>>.from(res.data['messages']);
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> sendDirectMessage(String peerNumber, String content) async {
+    try {
+      final res = await _dio.post('/api/v1/messages/chat/$peerNumber', data: {
+        'content': content,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteConversation(String peerNumber) async {
+    try {
+      final res = await _dio.delete('/api/v1/messages/chat/$peerNumber');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteDirectMessage(String msgId) async {
+    try {
+      final res = await _dio.delete('/api/v1/messages/msg/$msgId');
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   // Persistent Contacts management
   Future<List<Map<String, dynamic>>> getSavedContacts() async {
     final prefs = await SharedPreferences.getInstance();

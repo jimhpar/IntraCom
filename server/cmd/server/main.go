@@ -86,6 +86,14 @@ func main() {
 	hangoutGroup.Get("/:id/messages", api.GetHangoutMessagesHandler)
 	hangoutGroup.Post("/:id/messages", api.UserAuthMiddleware, api.PostHangoutMessageHandler)
 
+	// Direct 1-on-1 Messages routes
+	msgGroup := app.Group("/api/v1/messages", api.UserAuthMiddleware)
+	msgGroup.Get("/conversations", api.ListConversationsHandler)
+	msgGroup.Get("/chat/:peer", api.GetChatMessagesHandler)
+	msgGroup.Post("/chat/:peer", api.SendMessageHandler)
+	msgGroup.Delete("/chat/:peer", api.DeleteConversationHandler)
+	msgGroup.Delete("/msg/:id", api.DeleteMessageHandler)
+
 	// Admin protected routes
 	adminGroup := app.Group("/api/v1/admin", api.AdminAuthMiddleware)
 	adminGroup.Get("/stats", api.AdminStatsHandler)

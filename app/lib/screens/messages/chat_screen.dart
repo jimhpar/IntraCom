@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/signaling_service.dart';
@@ -23,6 +24,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
+  StreamSubscription? _signalSub;
 
   List<Map<String, dynamic>> _messages = [];
   bool _loading = false;
@@ -33,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages();
 
     // Listen for live messages from WebSocket
-    SignalingService.instance.messageStream.listen((msg) {
+    _signalSub = SignalingService.instance.messageStream.listen((msg) {
       if (!mounted) return;
       final type = msg['type'];
 
@@ -48,6 +50,7 @@ class _ChatScreenState extends State<ChatScreen> {
           if (senderNum != myNum) {
             setState(() {
               _messages.add({
+                'id': payload['id'],
                 'isMe': false,
                 'senderName': payload['sender_name'] ?? senderNum,
                 'text': payload['content'] ?? payload['text'] ?? '',
@@ -58,23 +61,55 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
       } else {
-        if (type == 'chat_message' && msg['from'] == widget.contactNumber) {
-          setState(() {
-            _messages.add({
-              'isMe': false,
-              'text': msg['payload']?['text'] ?? '',
-              'time': 'Just now',
+        if (type == 'chat_message') {
+          final fromNum = (msg['from'] ?? '').toString();
+          // Normalize comparison
+          final cleanFrom = fromNum.replaceAll('-', '').replaceAll('+', '');
+          final cleanContact = widget.contactNumber.replaceAll('-', '').replaceAll('+', '');
+
+          if (cleanFrom == cleanContact || fromNum == widget.contactNumber) {
+            final payload = msg['payload'] ?? {};
+            final text = payload['text'] ?? payload['content'] ?? msg['content'] ?? '';
+            setState(() {
+              _messages.add({
+                'isMe': false,
+                'senderName': widget.contactName,
+                'text': text,
+                'time': 'Just now',
+              });
             });
-          });
-          _scrollToBottom();
+            _scrollToBottom();
+          }
         }
       }
     });
   }
 
+  @override
+  void dispose() {
+    _signalSub?.cancel();
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  String _formatMsgTime(dynamic val) {
+    if (val == null) return 'Now';
+    try {
+      final dt = DateTime.parse(val.toString()).toLocal();
+      final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return '$hour:$minute $period';
+    } catch (_) {
+      return 'Now';
+    }
+  }
+
   Future<void> _loadMessages() async {
+    setState(() => _loading = true);
+
     if (widget.isHubChat) {
-      setState(() => _loading = true);
       final list = await ApiService.instance.getHubMessages(widget.contactNumber);
       if (mounted) {
         final myNum = ApiService.instance.currentUser?['full_number'] ?? '';
@@ -82,34 +117,38 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages = list.map((m) {
             final isMe = m['sender_num'] == myNum;
             return {
+              'id': m['id'],
               'isMe': isMe,
               'senderName': m['sender_name'] ?? m['sender_num'] ?? 'User',
               'text': m['content'] ?? '',
-              'time': 'Recent',
+              'time': _formatMsgTime(m['created_at']),
             };
           }).toList();
-          if (_messages.isEmpty) {
-            _messages = [
-              {
-                'isMe': false,
-                'senderName': 'System',
-                'text': 'Welcome to ${widget.contactName} live lounge chat! Send a message to everyone here.',
-                'time': 'Now',
-              }
-            ];
-          }
           _loading = false;
         });
         _scrollToBottom();
       }
     } else {
-      _messages = [
-        {
-          'isMe': false,
-          'text': 'Salam! Welcome to IntraCom direct secure messaging.',
-          'time': '12:30 PM',
-        },
-      ];
+      // 1-on-1 Persistent chat messages
+      final list = await ApiService.instance.getDirectChat(widget.contactNumber);
+      if (mounted) {
+        final myNum = (ApiService.instance.currentUser?['full_number'] ?? '').replaceAll('-', '').replaceAll('+', '');
+        setState(() {
+          _messages = list.map((m) {
+            final senderNum = (m['sender_num'] ?? '').toString().replaceAll('-', '').replaceAll('+', '');
+            final isMe = m['is_me'] == true || (myNum.isNotEmpty && senderNum == myNum);
+            return {
+              'id': m['id'],
+              'isMe': isMe,
+              'senderName': isMe ? 'Me' : widget.contactName,
+              'text': m['content'] ?? '',
+              'time': _formatMsgTime(m['created_at']),
+            };
+          }).toList();
+          _loading = false;
+        });
+        _scrollToBottom();
+      }
     }
   }
 
@@ -149,12 +188,47 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       });
     } else {
-      // 1:1 Direct Message via WebSocket
+      // 1:1 Direct Message: Persist via API & real-time push via WebSocket
+      await ApiService.instance.sendDirectMessage(widget.contactNumber, text);
+
       SignalingService.instance.sendSignal({
         'type': 'chat_message',
         'from': myNum,
         'to': widget.contactNumber,
-        'payload': {'text': text},
+        'payload': {
+          'text': text,
+          'sender_name': myName,
+          'sender_num': myNum,
+        },
+      });
+    }
+  }
+
+  Future<void> _clearChat() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Clear Chat History?'),
+        content: const Text('Are you sure you want to clear all messages in this conversation?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (!widget.isHubChat) {
+        await ApiService.instance.deleteConversation(widget.contactNumber);
+      }
+      setState(() {
+        _messages.clear();
       });
     }
   }
@@ -217,112 +291,158 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: widget.isHubChat
-            ? [
-                IconButton(
-                  icon: Icon(Icons.refresh, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
-                  onPressed: _loadMessages,
+        actions: [
+          if (!widget.isHubChat) ...[
+            IconButton(
+              icon: const Icon(Icons.phone, color: IosTheme.primaryGreen),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InCallScreen(
+                      targetNumber: widget.contactNumber,
+                      targetName: widget.contactName,
+                      isVideo: false,
+                    ),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.videocam, color: IosTheme.accentBlue),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InCallScreen(
+                      targetNumber: widget.contactNumber,
+                      targetName: widget.contactName,
+                      isVideo: true,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: isDark ? Colors.white70 : const Color(0xFF3A3A3C)),
+            onSelected: (val) {
+              if (val == 'refresh') {
+                _loadMessages();
+              } else if (val == 'clear') {
+                _clearChat();
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20),
+                    SizedBox(width: 8),
+                    Text('Refresh Messages'),
+                  ],
                 ),
-              ]
-            : [
-                IconButton(
-                  icon: const Icon(Icons.phone, color: IosTheme.primaryGreen),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => InCallScreen(
-                          targetNumber: widget.contactNumber,
-                          targetName: widget.contactName,
-                          isVideo: false,
-                        ),
-                      ),
-                    );
-                  },
+              ),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 20),
+                    SizedBox(width: 8),
+                    Text('Clear Chat', style: TextStyle(color: Colors.red)),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.videocam, color: IosTheme.accentBlue),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => InCallScreen(
-                          targetNumber: widget.contactNumber,
-                          targetName: widget.contactName,
-                          isVideo: true,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator(color: IosTheme.primaryGreen))
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, i) {
-                      final m = _messages[i];
-                      final isMe = m['isMe'] == true;
-                      final senderName = m['senderName'];
-
-                      return Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isMe ? IosTheme.primaryGreen : otherBubbleBg,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(isMe ? 16 : 4),
-                              bottomRight: Radius.circular(isMe ? 4 : 16),
+                : _messages.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.mark_chat_read_outlined, size: 48, color: secondaryTextColor.withOpacity(0.5)),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.isHubChat ? 'No Lounge Messages Yet' : 'No messages yet with ${widget.contactName}',
+                              style: TextStyle(color: secondaryTextColor, fontSize: 14),
                             ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                            children: [
-                              if (widget.isHubChat && !isMe && senderName != null) ...[
-                                Text(
-                                  senderName,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: IosTheme.accentBlue,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                              ],
-                              Text(
-                                m['text'] ?? '',
-                                style: TextStyle(
-                                  color: isMe ? Colors.white : otherBubbleText,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                m['time'] ?? '',
-                                style: TextStyle(
-                                  color: isMe ? Colors.white70 : otherBubbleTime,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Type a message below to start chatting.',
+                              style: TextStyle(color: secondaryTextColor.withOpacity(0.7), fontSize: 12),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollCtrl,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, i) {
+                          final m = _messages[i];
+                          final isMe = m['isMe'] == true;
+                          final senderName = m['senderName'];
+
+                          return Align(
+                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.75,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? IosTheme.primaryGreen : otherBubbleBg,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(16),
+                                  topRight: const Radius.circular(16),
+                                  bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : 16),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  if (widget.isHubChat && !isMe && senderName != null) ...[
+                                    Text(
+                                      senderName,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: IosTheme.accentBlue,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                  ],
+                                  Text(
+                                    m['text'] ?? '',
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white : otherBubbleText,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    m['time'] ?? '',
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white70 : otherBubbleTime,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

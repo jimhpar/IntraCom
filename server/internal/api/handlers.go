@@ -486,6 +486,24 @@ func WebSocketHandler(c *websocket.Conn) {
 		signal.Timestamp = time.Now().UnixMilli()
 
 		switch signal.Type {
+		case "ping":
+			// Live Heartbeat exchange to keep connection alive and update presence
+			go func() {
+				bgCtx, bgCancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer bgCancel()
+				_, _ = db.Pool.Exec(bgCtx, "UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = $1", claims.UserID)
+			}()
+			pongMsg := signaling.SignalMessage{
+				Type:      "pong",
+				From:      "server",
+				Timestamp: time.Now().UnixMilli(),
+			}
+			if pongBytes, err := json.Marshal(pongMsg); err == nil {
+				select {
+				case client.Send <- pongBytes:
+				default:
+				}
+			}
 		case "hangout_join":
 			if signal.HangoutID != "" {
 				signaling.GlobalHub.JoinHangout(signal.HangoutID, client.FullNumber)
@@ -494,6 +512,41 @@ func WebSocketHandler(c *websocket.Conn) {
 			if signal.HangoutID != "" {
 				signaling.GlobalHub.LeaveHangout(signal.HangoutID, client.FullNumber)
 			}
+		case "chat_message":
+			// If payload has content, persist to DB in background
+			if signal.To != "" {
+				go func(sig signaling.SignalMessage, senderID string) {
+					bgCtx, bgCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer bgCancel()
+					peerID, _, _, err := findUserByTarget(bgCtx, sig.To)
+					if err == nil {
+						convID, err := getOrCreateDirectConversation(bgCtx, senderID, peerID)
+						if err == nil {
+							var content string
+							if sig.Payload != nil {
+								if m, ok := sig.Payload.(map[string]interface{}); ok {
+									if c, ok := m["content"].(string); ok {
+										content = c
+									} else if t, ok := m["text"].(string); ok {
+										content = t
+									}
+								}
+							}
+							if content != "" {
+								var msgID string
+								var createdAt time.Time
+								_ = db.Pool.QueryRow(bgCtx, `
+									INSERT INTO messages (conversation_id, sender_id, content)
+									VALUES ($1, $2, $3)
+									RETURNING id, created_at
+								`, convID, senderID, content).Scan(&msgID, &createdAt)
+								_, _ = db.Pool.Exec(bgCtx, "UPDATE conversations SET last_message_at = CURRENT_TIMESTAMP WHERE id = $1", convID)
+							}
+						}
+					}
+				}(signal, claims.UserID)
+			}
+			signaling.GlobalHub.RouteMessage(signal)
 		default:
 			signaling.GlobalHub.RouteMessage(signal)
 		}

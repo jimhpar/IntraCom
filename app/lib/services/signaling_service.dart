@@ -20,6 +20,22 @@ class SignalingService {
   final ValueNotifier<Set<String>> onlineUsersNotifier = ValueNotifier<Set<String>>({});
   bool isOnline(String number) => onlineUsersNotifier.value.contains(number);
 
+  Timer? _heartbeatTimer;
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (_isConnected) {
+        sendSignal({'type': 'ping', 'timestamp': DateTime.now().millisecondsSinceEpoch});
+      }
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
   void connect() {
     final token = ApiService.instance.token;
     if (token == null) return;
@@ -35,6 +51,7 @@ class SignalingService {
     try {
       _channel = WebSocketChannel.connect(uri);
       _isConnected = true;
+      _startHeartbeat();
 
       _channel!.stream.listen(
         (data) {
@@ -68,15 +85,18 @@ class SignalingService {
         },
         onDone: () {
           _isConnected = false;
+          _stopHeartbeat();
           _scheduleReconnect();
         },
         onError: (err) {
           _isConnected = false;
+          _stopHeartbeat();
           _scheduleReconnect();
         },
       );
     } catch (_) {
       _isConnected = false;
+      _stopHeartbeat();
       _scheduleReconnect();
     }
   }
@@ -144,6 +164,7 @@ class SignalingService {
   }
 
   void disconnect() {
+    _stopHeartbeat();
     _channel?.sink.close();
     _channel = null;
     _isConnected = false;
