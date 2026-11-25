@@ -26,15 +26,19 @@ class IntraComApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IntraCom',
-      debugShowCheckedModeBanner: false,
-      theme: IosTheme.darkTheme,
-      darkTheme: IosTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      home: ApiService.instance.isAuthenticated
-          ? const MainNavigationScreen()
-          : const AuthScreen(),
+    return ValueListenableBuilder<ThemeData>(
+      valueListenable: IosTheme.currentThemeNotifier,
+      builder: (context, theme, child) {
+        return MaterialApp(
+          title: 'IntraCom',
+          debugShowCheckedModeBanner: false,
+          theme: theme,
+          darkTheme: theme,
+          home: ApiService.instance.isAuthenticated
+              ? const MainNavigationScreen()
+              : const AuthScreen(),
+        );
+      },
     );
   }
 }

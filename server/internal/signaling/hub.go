@@ -54,8 +54,24 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client.FullNumber] = client
+			onlineSnapshot := make([]string, 0, len(h.clients))
+			for num := range h.clients {
+				onlineSnapshot = append(onlineSnapshot, num)
+			}
 			h.mu.Unlock()
-			log.Printf("User online: %s (Total online: %d)", client.FullNumber, len(h.clients))
+			log.Printf("User online: %s (Total online: %d)", client.FullNumber, len(onlineSnapshot))
+			// Send initial presence list to the connected user immediately
+			initMsg := SignalMessage{
+				Type: "initial_presence",
+				From: "system",
+				Payload: onlineSnapshot,
+			}
+			if initBytes, err := json.Marshal(initMsg); err == nil {
+				select {
+				case client.Send <- initBytes:
+				default:
+				}
+			}
 			h.broadcastPresence(client.FullNumber, "online")
 
 		case client := <-h.unregister:
@@ -96,6 +112,43 @@ func (h *Hub) RegisterClient(client *Client) {
 
 func (h *Hub) UnregisterClient(client *Client) {
 	h.unregister <- client
+}
+
+// GetOnlineUsers returns a snapshot of all currently connected IntraCom numbers
+func (h *Hub) GetOnlineUsers() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	list := make([]string, 0, len(h.clients))
+	for num := range h.clients {
+		list = append(list, num)
+	}
+	return list
+}
+
+// BroadcastHubMessage relays a message to all users connected to a hangout or broadcasts system-wide
+func (h *Hub) BroadcastHubMessage(hangoutID string, msg SignalMessage) {
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if members, ok := h.hangoutHubs[hangoutID]; ok && len(members) > 0 {
+		for _, member := range members {
+			select {
+			case member.Send <- bytes:
+			default:
+			}
+		}
+	} else {
+		// Broadcast to all connected clients if specific hangout room is empty
+		for _, client := range h.clients {
+			select {
+			case client.Send <- bytes:
+			default:
+			}
+		}
+	}
 }
 
 // RouteMessage sends signaling packets (offer, answer, ice, reject, hangup) directly to the target user

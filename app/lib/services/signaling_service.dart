@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'api_service.dart';
 
@@ -15,9 +16,20 @@ class SignalingService {
   bool _isConnected = false;
   bool get isConnected => _isConnected;
 
+  // Authentic live presence tracker
+  final ValueNotifier<Set<String>> onlineUsersNotifier = ValueNotifier<Set<String>>({});
+  bool isOnline(String number) => onlineUsersNotifier.value.contains(number);
+
   void connect() {
     final token = ApiService.instance.token;
     if (token == null) return;
+
+    // Fetch initial list of online users from REST API as well
+    ApiService.instance.getOnlineUsers().then((list) {
+      if (list.isNotEmpty) {
+        onlineUsersNotifier.value = list.toSet();
+      }
+    });
 
     final uri = Uri.parse('${ApiService.wsUrl}?token=$token');
     try {
@@ -28,6 +40,29 @@ class SignalingService {
         (data) {
           try {
             final decoded = jsonDecode(data as String) as Map<String, dynamic>;
+            final type = decoded['type'];
+
+            // Handle real-time presence events
+            if (type == 'initial_presence') {
+              final payload = decoded['payload'];
+              if (payload is List) {
+                onlineUsersNotifier.value = payload.map((e) => e.toString()).toSet();
+              }
+            } else if (type == 'presence_update') {
+              final payload = decoded['payload'];
+              final num = (payload?['number'] ?? decoded['from'])?.toString() ?? '';
+              final status = payload?['status']?.toString();
+              if (num.isNotEmpty) {
+                final current = Set<String>.from(onlineUsersNotifier.value);
+                if (status == 'online') {
+                  current.add(num);
+                } else {
+                  current.remove(num);
+                }
+                onlineUsersNotifier.value = current;
+              }
+            }
+
             _messagesController.add(decoded);
           } catch (_) {}
         },

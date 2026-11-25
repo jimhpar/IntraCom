@@ -252,6 +252,115 @@ func LoginHandler(c *fiber.Ctx) error {
 	})
 }
 
+// GET /api/v1/users/me - Fetch latest profile information from DB
+func GetProfileHandler(c *fiber.Ctx) error {
+	claims, ok := c.Locals("user").(*auth.JWTClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Unauthorized"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var (
+		id, fullNumber, displayName, phone, districtName string
+		email, bio                                       sql.NullString
+		districtCode                                     int
+		isAdmin, isSuspended                             bool
+	)
+
+	query := `
+		SELECT id, full_number, district_code, district_name, display_name, phone, email, bio, is_admin, is_suspended
+		FROM users
+		WHERE id = $1
+	`
+	err := db.Pool.QueryRow(ctx, query, claims.UserID).Scan(
+		&id, &fullNumber, &districtCode, &districtName, &displayName, &phone, &email, &bio, &isAdmin, &isSuspended,
+	)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "User not found"})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"user_id":       id,
+			"full_number":   fullNumber,
+			"district_code": districtCode,
+			"district_name": districtName,
+			"display_name":  displayName,
+			"phone":         phone,
+			"email":         email.String,
+			"bio":           bio.String,
+			"is_admin":      isAdmin,
+			"is_suspended":  isSuspended,
+		},
+	})
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// PUT /api/v1/users/change-password - Change user password
+func ChangePasswordHandler(c *fiber.Ctx) error {
+	claims, ok := c.Locals("user").(*auth.JWTClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Unauthorized"})
+	}
+
+	var req ChangePasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Invalid request body"})
+	}
+
+	if req.OldPassword == "" || req.NewPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Both old and new password are required"})
+	}
+
+	if len(req.NewPassword) < 6 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "New password must be at least 6 characters"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var currentHash string
+	err := db.Pool.QueryRow(ctx, "SELECT password_hash FROM users WHERE id = $1", claims.UserID).Scan(&currentHash)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "User not found"})
+	}
+
+	if !auth.CheckPassword(req.OldPassword, currentHash) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Current password is incorrect"})
+	}
+
+	newHash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to hash new password"})
+	}
+
+	_, err = db.Pool.Exec(ctx, "UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", newHash, claims.UserID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to update password"})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Password changed successfully",
+	})
+}
+
+// GET /api/v1/users/online - Returns list of currently connected user numbers
+func GetOnlineUsersHandler(c *fiber.Ctx) error {
+	onlineList := signaling.GlobalHub.GetOnlineUsers()
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    onlineList,
+	})
+}
+
 // PUT /api/v1/users/me - Update profile name and bio
 func UpdateProfileHandler(c *fiber.Ctx) error {
 	claims, ok := c.Locals("user").(*auth.JWTClaims)

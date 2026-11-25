@@ -130,6 +130,63 @@ class ApiService {
     }
   }
 
+  // Fetch the latest profile from server and synchronize local storage
+  Future<Map<String, dynamic>?> getProfile() async {
+    try {
+      final res = await _dio.get('/api/v1/users/me');
+      if (res.data['success'] == true) {
+        final data = res.data['data'] as Map<String, dynamic>;
+        _currentUser = data;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_number', data['full_number'] ?? '');
+        await prefs.setString('user_name', data['display_name'] ?? '');
+        await prefs.setString('user_district', data['district_name'] ?? '');
+        await prefs.setString('user_bio', data['bio'] ?? '');
+        await prefs.setBool('is_admin', data['is_admin'] == true);
+        return data;
+      }
+    } catch (_) {}
+    return _currentUser;
+  }
+
+  // Change user password
+  Future<Map<String, dynamic>> changePassword({required String oldPassword, required String newPassword}) async {
+    try {
+      final res = await _dio.put('/api/v1/users/change-password', data: {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      });
+      return res.data;
+    } on DioException catch (e) {
+      return {'success': false, 'error': e.response?.data?['error'] ?? e.message ?? 'Network error'};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  // Fetch live online user numbers
+  Future<List<String>> getOnlineUsers() async {
+    try {
+      final res = await _dio.get('/api/v1/users/online');
+      if (res.data['success'] == true && res.data['data'] is List) {
+        return (res.data['data'] as List).map((e) => e.toString()).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // Full admin edit for any user
+  Future<Map<String, dynamic>> adminUpdateUserFull(String userId, Map<String, dynamic> data) async {
+    try {
+      final res = await _dio.put('/api/v1/admin/users/$userId', data: data);
+      return res.data;
+    } on DioException catch (e) {
+      return {'success': false, 'error': e.response?.data?['error'] ?? e.message ?? 'Failed to update user'};
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
   // Admin APIs
   Future<Map<String, dynamic>> getAdminStats() async {
     try {
@@ -250,6 +307,74 @@ class ApiService {
       return res.data;
     } catch (e) {
       return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  // Get users belonging to a Hub / Private Table
+  Future<List<Map<String, dynamic>>> getHubMembers(String hubId) async {
+    try {
+      final res = await _dio.get('/api/v1/hangouts/$hubId/members');
+      if (res.data['success'] == true && res.data['data'] is List) {
+        return List<Map<String, dynamic>>.from(res.data['data']);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // Get Chat Messages for a Hub
+  Future<List<Map<String, dynamic>>> getHubMessages(String hubId) async {
+    try {
+      final res = await _dio.get('/api/v1/hangouts/$hubId/messages');
+      if (res.data['success'] == true && res.data['data'] is List) {
+        return List<Map<String, dynamic>>.from(res.data['data']);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  // Send Chat Message to a Hub
+  Future<Map<String, dynamic>> sendHubMessage(String hubId, String content) async {
+    try {
+      final res = await _dio.post('/api/v1/hangouts/$hubId/messages', data: {
+        'content': content,
+      });
+      return res.data;
+    } catch (e) {
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  // Persistent Contacts management
+  Future<List<Map<String, dynamic>>> getSavedContacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList('saved_contacts_list') ?? [];
+    if (raw.isEmpty) {
+      // Return default starter contacts
+      return [
+        {'name': 'Zim Official (Admin)', 'number': '+1-1111111', 'district': 'Dhaka (+1)'},
+        {'name': 'Rafiq Ahmed', 'number': '+1-6860499', 'district': 'Dhaka (+1)'},
+        {'name': 'Farhan Ahmed', 'number': '+2-1000001', 'district': 'Narsingdi (+2)'},
+        {'name': 'Kazi Sakib', 'number': '+3-9182746', 'district': 'Brahmanbaria (+3)'},
+      ];
+    }
+    return raw.map((item) {
+      final parts = item.split('|');
+      return {
+        'name': parts.isNotEmpty ? parts[0] : 'User',
+        'number': parts.length > 1 ? parts[1] : '',
+        'district': parts.length > 2 ? parts[2] : 'IntraCom',
+      };
+    }).toList();
+  }
+
+  Future<void> addContact({required String name, required String number, String district = 'IntraCom'}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList('saved_contacts_list') ?? [];
+    // Avoid duplicate numbers
+    final exists = current.any((element) => element.contains('|$number|') || element.endsWith('|$number'));
+    if (!exists) {
+      current.add('$name|$number|$district');
+      await prefs.setStringList('saved_contacts_list', current);
     }
   }
 

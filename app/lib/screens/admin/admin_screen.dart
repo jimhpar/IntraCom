@@ -102,62 +102,164 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     }
   }
 
-  void _showCustomizeNumberDialog(String userId, String currentNum, String userName) {
-    final numCtrl = TextEditingController(text: currentNum);
+  void _showEditUserDialog(Map<String, dynamic> user) {
+    final userId = user['id'].toString();
+    final nameCtrl = TextEditingController(text: user['display_name'] ?? '');
+    final numCtrl = TextEditingController(text: user['full_number'] ?? '');
+    final phoneCtrl = TextEditingController(text: user['phone'] ?? '');
+    final emailCtrl = TextEditingController(text: user['email'] ?? '');
+    final passCtrl = TextEditingController(); // Empty by default
+    bool isAdminVal = user['is_admin'] == true;
+    bool isSuspendedVal = user['is_suspended'] == true;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: IosTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Customize Number for $userName', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter custom/VIP IntraCom calling number (e.g. +1-7777777 or +2-1111111):',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: numCtrl,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1),
-              decoration: const InputDecoration(
-                labelText: 'IntraCom Number',
-                prefixIcon: Icon(Icons.dialpad, color: IosTheme.primaryGreen),
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: IosTheme.cardDark,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.manage_accounts, color: IosTheme.primaryGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Edit User: ${user['display_name'] ?? 'User'}',
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.person, color: IosTheme.accentBlue),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: numCtrl,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    labelText: 'IntraCom Number',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.dialpad, color: IosTheme.primaryGreen),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: phoneCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Mobile Phone',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.phone_android, color: Colors.white54),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: emailCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Email Address (Optional)',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.email, color: Colors.white54),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Reset Password (Leave blank to keep current)',
+                    labelStyle: TextStyle(color: Colors.white54),
+                    prefixIcon: Icon(Icons.lock_outline, color: Colors.orangeAccent),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Admin Privileges', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: const Text('Grant full admin control', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  value: isAdminVal,
+                  activeTrackColor: Colors.amber,
+                  onChanged: (val) => setDlgState(() => isAdminVal = val),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Suspend Account', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  subtitle: const Text('Block calls and app access', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                  value: isSuspendedVal,
+                  activeTrackColor: Colors.redAccent,
+                  onChanged: (val) => setDlgState(() => isSuspendedVal = val),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(ctx);
+
+                final updateData = <String, dynamic>{
+                  'display_name': nameCtrl.text.trim(),
+                  'full_number': numCtrl.text.trim(),
+                  'phone': phoneCtrl.text.trim(),
+                  'email': emailCtrl.text.trim(),
+                  'is_admin': isAdminVal,
+                  'is_suspended': isSuspendedVal,
+                };
+                if (passCtrl.text.trim().isNotEmpty) {
+                  updateData['password'] = passCtrl.text.trim();
+                }
+
+                final res = await ApiService.instance.adminUpdateUserFull(userId, updateData);
+                if (res['success'] == true) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('User information updated successfully!'),
+                      backgroundColor: IosTheme.primaryGreen,
+                    ),
+                  );
+                  _loadAllAdminData();
+                  // If the admin edited their own account, refresh the profile
+                  final myNum = ApiService.instance.currentUser?['full_number'];
+                  if (myNum == user['full_number'] || myNum == numCtrl.text.trim()) {
+                    await ApiService.instance.getProfile();
+                  }
+                } else {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(res['error'] ?? 'Update failed'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
-            onPressed: () async {
-              final newNum = numCtrl.text.trim();
-              if (newNum.isEmpty) return;
-              final messenger = ScaffoldMessenger.of(context);
-              Navigator.pop(ctx);
-              final res = await ApiService.instance.adminUpdateUserNumber(userId, newNum);
-              if (res['success'] == true) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Number updated to $newNum successfully!'), backgroundColor: IosTheme.primaryGreen),
-                );
-                _loadAllAdminData();
-              } else {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(res['error'] ?? 'Failed to update number'), backgroundColor: Colors.redAccent),
-                );
-              }
-            },
-            child: const Text('Save Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }
@@ -580,20 +682,20 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                                     ),
                                     const SizedBox(width: 8),
                                     GestureDetector(
-                                      onTap: () => _showCustomizeNumberDialog(u['id'], u['full_number'], u['display_name'] ?? 'User'),
+                                      onTap: () => _showEditUserDialog(u),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: IosTheme.accentBlue.withValues(alpha: 0.15),
+                                          color: IosTheme.primaryGreen.withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: IosTheme.accentBlue.withValues(alpha: 0.4)),
+                                          border: Border.all(color: IosTheme.primaryGreen.withValues(alpha: 0.5)),
                                         ),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.edit, size: 10, color: IosTheme.accentBlue),
-                                            SizedBox(width: 3),
-                                            Text('Customize', style: TextStyle(fontSize: 10, color: IosTheme.accentBlue, fontWeight: FontWeight.bold)),
+                                            Icon(Icons.edit, size: 11, color: IosTheme.primaryGreen),
+                                            SizedBox(width: 4),
+                                            Text('Edit User', style: TextStyle(fontSize: 11, color: IosTheme.primaryGreen, fontWeight: FontWeight.bold)),
                                           ],
                                         ),
                                       ),

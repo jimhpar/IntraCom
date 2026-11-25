@@ -69,7 +69,12 @@ func main() {
 
 	// User protected routes
 	userGroup := app.Group("/api/v1/users", api.UserAuthMiddleware)
+	userGroup.Get("/me", api.GetProfileHandler)
 	userGroup.Put("/me", api.UpdateProfileHandler)
+	userGroup.Put("/change-password", api.ChangePasswordHandler)
+
+	// Online users presence endpoint
+	app.Get("/api/v1/users/online", api.GetOnlineUsersHandler)
 
 	// Hangouts routes
 	hangoutGroup := app.Group("/api/v1/hangouts")
@@ -77,12 +82,16 @@ func main() {
 	hangoutGroup.Post("/request-public", api.UserAuthMiddleware, api.RequestPublicHubHandler)
 	hangoutGroup.Get("/private", api.UserAuthMiddleware, api.GetPrivateTablesHandler)
 	hangoutGroup.Post("/private", api.UserAuthMiddleware, api.CreatePrivateTableHandler)
+	hangoutGroup.Get("/:id/members", api.GetHangoutMembersHandler)
+	hangoutGroup.Get("/:id/messages", api.GetHangoutMessagesHandler)
+	hangoutGroup.Post("/:id/messages", api.UserAuthMiddleware, api.PostHangoutMessageHandler)
 
 	// Admin protected routes
 	adminGroup := app.Group("/api/v1/admin", api.AdminAuthMiddleware)
 	adminGroup.Get("/stats", api.AdminStatsHandler)
 	adminGroup.Get("/users", api.AdminListUsersHandler)
 	adminGroup.Post("/users/manual", api.AdminManualCreateUserHandler)
+	adminGroup.Put("/users/:id", api.AdminUpdateUserFullHandler)
 	adminGroup.Put("/users/:id/suspend", api.AdminToggleSuspendHandler)
 	adminGroup.Put("/users/:id/number", api.AdminUpdateUserNumberHandler)
 	adminGroup.Get("/hub-requests", api.AdminListHubRequestsHandler)

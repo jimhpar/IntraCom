@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
+import '../../services/signaling_service.dart';
 import '../../theme/ios_theme.dart';
 import '../calling/in_call_screen.dart';
 import '../messages/chat_screen.dart';
@@ -13,39 +15,25 @@ class ContactsScreen extends StatefulWidget {
 class _ContactsScreenState extends State<ContactsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _filter = '';
+  List<Map<String, dynamic>> _contacts = [];
+  bool _loading = false;
 
-  final List<Map<String, dynamic>> _contacts = [
-    {
-      'name': 'Rafiq Ahmed',
-      'number': '+1-6860499',
-      'district': 'Dhaka (+1)',
-      'isOnline': true,
-    },
-    {
-      'name': 'Farhan Ahmed',
-      'number': '+2-1000001',
-      'district': 'Narsingdi (+2)',
-      'isOnline': false,
-    },
-    {
-      'name': 'Kazi Sakib',
-      'number': '+3-9182746',
-      'district': 'Brahmanbaria (+3)',
-      'isOnline': true,
-    },
-    {
-      'name': 'Mahmudur Rahman',
-      'number': '+15-5529103',
-      'district': 'Chattogram (+15)',
-      'isOnline': true,
-    },
-    {
-      'name': 'Syed Nayeem',
-      'number': '+49-2200718',
-      'district': 'Sylhet (+49)',
-      'isOnline': false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    setState(() => _loading = true);
+    final list = await ApiService.instance.getSavedContacts();
+    if (mounted) {
+      setState(() {
+        _contacts = list;
+        _loading = false;
+      });
+    }
+  }
 
   void _showAddContactDialog() {
     final nameCtrl = TextEditingController();
@@ -55,24 +43,31 @@ class _ContactsScreenState extends State<ContactsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: IosTheme.cardDark,
-        title: const Text('Add IntraCom Contact'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Add IntraCom Contact', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameCtrl,
+              style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Contact Name',
+                labelStyle: TextStyle(color: Colors.white54),
                 hintText: 'e.g. Rafiq Islam',
+                hintStyle: TextStyle(color: Colors.white24),
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: numberCtrl,
+              style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'IntraCom Number',
+                labelStyle: TextStyle(color: Colors.white54),
                 hintText: '+1-6860499',
+                hintStyle: TextStyle(color: Colors.white24),
                 border: OutlineInputBorder(),
               ),
             ),
@@ -84,21 +79,25 @@ class _ContactsScreenState extends State<ContactsScreen> {
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: IosTheme.accentBlue),
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty && numberCtrl.text.isNotEmpty) {
-                setState(() {
-                  _contacts.add({
-                    'name': nameCtrl.text.trim(),
-                    'number': numberCtrl.text.trim(),
-                    'district': 'Registered Contact',
-                    'isOnline': false,
-                  });
-                });
+            style: ElevatedButton.styleFrom(backgroundColor: IosTheme.primaryGreen),
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              final num = numberCtrl.text.trim();
+              if (name.isNotEmpty && num.isNotEmpty) {
                 Navigator.pop(ctx);
+                await ApiService.instance.addContact(name: name, number: num);
+                await _loadContacts();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Contact "$name" saved!'),
+                      backgroundColor: IosTheme.primaryGreen,
+                    ),
+                  );
+                }
               }
             },
-            child: const Text('Save Contact', style: TextStyle(color: Colors.white)),
+            child: const Text('Save Contact', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -109,8 +108,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Widget build(BuildContext context) {
     final filtered = _contacts.where((c) {
       final q = _filter.toLowerCase();
-      return c['name'].toString().toLowerCase().contains(q) ||
-          c['number'].toString().toLowerCase().contains(q);
+      return (c['name'] ?? '').toString().toLowerCase().contains(q) ||
+          (c['number'] ?? '').toString().toLowerCase().contains(q);
     }).toList();
 
     return Scaffold(
@@ -118,6 +117,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
       appBar: AppBar(
         title: const Text('Contacts'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white70),
+            onPressed: _loadContacts,
+          ),
           IconButton(
             icon: const Icon(Icons.add, color: IosTheme.accentBlue, size: 28),
             onPressed: _showAddContactDialog,
@@ -150,103 +153,131 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ),
           ),
           Expanded(
-            child: ListView.separated(
-              itemCount: filtered.length,
-              separatorBuilder: (context, index) => const Divider(
-                color: Colors.white10,
-                indent: 72,
-                height: 1,
-              ),
-              itemBuilder: (context, index) {
-                final item = filtered[index];
-                final isOnline = item['isOnline'] == true;
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: IosTheme.primaryGreen))
+                : ValueListenableBuilder<Set<String>>(
+                    valueListenable: SignalingService.instance.onlineUsersNotifier,
+                    builder: (context, onlineUsers, child) {
+                      if (filtered.isEmpty) {
+                        return const Center(
+                          child: Text('No contacts found', style: TextStyle(color: Colors.white38)),
+                        );
+                      }
 
-                return ListTile(
-                  onTap: () {
-                    // Tapping contact opens Chat!
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatScreen(
-                          contactName: item['name'],
-                          contactNumber: item['number'],
+                      return ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (context, index) => const Divider(
+                          color: Colors.white10,
+                          indent: 72,
+                          height: 1,
                         ),
-                      ),
-                    );
-                  },
-                  leading: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: const Color(0xFF2C2C2E),
-                        child: Text(
-                          (item['name'] as String).substring(0, 1).toUpperCase(),
-                          style: const TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: isOnline ? IosTheme.primaryGreen : Colors.grey,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black, width: 2),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  title: Text(
-                    item['name'],
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  subtitle: Text(
-                    '${item['number']} • ${item['district']}',
-                    style: const TextStyle(fontSize: 13, color: Colors.white54),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.phone, color: IosTheme.primaryGreen),
-                        onPressed: () {
-                          // Directly open In-Call Screen!
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => InCallScreen(
-                                targetNumber: item['number'],
-                                targetName: item['name'],
-                                isVideo: false,
-                              ),
+                        itemBuilder: (context, index) {
+                          final item = filtered[index];
+                          final num = item['number']?.toString() ?? '';
+                          final name = item['name']?.toString() ?? 'User';
+                          final district = item['district']?.toString() ?? '';
+                          final isOnline = onlineUsers.contains(num);
+
+                          return ListTile(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    contactName: name,
+                                    contactNumber: num,
+                                  ),
+                                ),
+                              );
+                            },
+                            leading: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: const Color(0xFF2C2C2E),
+                                  child: Text(
+                                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                    style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: isOnline ? IosTheme.primaryGreen : Colors.grey.shade700,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.black, width: 2),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white),
+                                ),
+                                if (isOnline) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: IosTheme.primaryGreen.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('ONLINE', style: TextStyle(color: IosTheme.primaryGreen, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              '$num ${district.isNotEmpty ? '• $district' : ''}',
+                              style: const TextStyle(fontSize: 13, color: Colors.white54),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.phone, color: IosTheme.primaryGreen),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => InCallScreen(
+                                          targetNumber: num,
+                                          targetName: name,
+                                          isVideo: false,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.videocam, color: IosTheme.accentBlue),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => InCallScreen(
+                                          targetNumber: num,
+                                          targetName: name,
+                                          isVideo: true,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           );
                         },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.videocam, color: IosTheme.accentBlue),
-                        onPressed: () {
-                          // Directly open Video Call Screen!
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => InCallScreen(
-                                targetNumber: item['number'],
-                                targetName: item['name'],
-                                isVideo: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),

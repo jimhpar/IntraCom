@@ -220,3 +220,165 @@ func CreatePrivateTableHandler(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// GET /api/v1/hangouts/:id/members - Get list of users in a hub/table
+func GetHangoutMembersHandler(c *fiber.Ctx) error {
+	hubID := c.Params("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 1. First attempt to get users explicitly enrolled in hangout_members
+	rows, err := db.Pool.Query(ctx, `
+		SELECT u.id, u.full_number, u.display_name, u.district_name, COALESCE(hm.role, 'member') as role
+		FROM hangout_members hm
+		JOIN users u ON hm.user_id = u.id
+		WHERE hm.hangout_id = $1
+		ORDER BY hm.joined_at ASC
+	`, hubID)
+
+	var members []fiber.Map
+	if err == nil {
+		for rows.Next() {
+			var id, fullNum, name, district, role string
+			if err := rows.Scan(&id, &fullNum, &name, &district, &role); err == nil {
+				members = append(members, fiber.Map{
+					"id":            id,
+					"full_number":   fullNum,
+					"display_name":  name,
+					"district_name": district,
+					"role":          role,
+				})
+			}
+		}
+		rows.Close()
+	}
+
+	// 2. If no explicit members found (e.g. for a global public hub), return community directory users
+	if len(members) == 0 {
+		userRows, err := db.Pool.Query(ctx, `
+			SELECT id, full_number, display_name, district_name
+			FROM users
+			WHERE is_suspended = FALSE
+			ORDER BY created_at DESC
+			LIMIT 25
+		`)
+		if err == nil {
+			for userRows.Next() {
+				var id, fullNum, name, district string
+				if err := userRows.Scan(&id, &fullNum, &name, &district); err == nil {
+					members = append(members, fiber.Map{
+						"id":            id,
+						"full_number":   fullNum,
+						"display_name":  name,
+						"district_name": district,
+						"role":          "member",
+					})
+				}
+			}
+			userRows.Close()
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    members,
+	})
+}
+
+// GET /api/v1/hangouts/:id/messages - Get recent chat history for a hub
+func GetHangoutMessagesHandler(c *fiber.Ctx) error {
+	hubID := c.Params("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rows, err := db.Pool.Query(ctx, `
+		SELECT m.id, m.content, m.created_at, u.display_name, u.full_number
+		FROM hangout_messages m
+		JOIN users u ON m.sender_id = u.id
+		WHERE m.hangout_id = $1 AND m.is_deleted = FALSE
+		ORDER BY m.created_at ASC
+		LIMIT 100
+	`, hubID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to fetch messages"})
+	}
+	defer rows.Close()
+
+	var messages []fiber.Map
+	for rows.Next() {
+		var id, content, senderName, senderNum string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &content, &createdAt, &senderName, &senderNum); err == nil {
+			messages = append(messages, fiber.Map{
+				"id":          id,
+				"content":     content,
+				"sender_name": senderName,
+				"sender_num":  senderNum,
+				"created_at":  createdAt.Format(time.RFC3339),
+			})
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    messages,
+	})
+}
+
+// POST /api/v1/hangouts/:id/messages - Send message to hub chat
+func PostHangoutMessageHandler(c *fiber.Ctx) error {
+	hubID := c.Params("id")
+	claims, ok := c.Locals("user").(*auth.JWTClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Unauthorized"})
+	}
+
+	var input HubMessageInput
+	if err := c.BodyParser(&input); err != nil || strings.TrimSpace(input.Content) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Content is required"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var msgID string
+	var createdAt time.Time
+	err := db.Pool.QueryRow(ctx, `
+		INSERT INTO hangout_messages (hangout_id, sender_id, content)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at
+	`, hubID, claims.UserID, strings.TrimSpace(input.Content)).Scan(&msgID, &createdAt)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to save message"})
+	}
+
+	// Fetch sender display name
+	var senderName string
+	_ = db.Pool.QueryRow(ctx, "SELECT display_name FROM users WHERE id = $1", claims.UserID).Scan(&senderName)
+
+	// Broadcast to active WebSocket clients in this hub
+	signaling.GlobalHub.BroadcastHubMessage(hubID, signaling.SignalMessage{
+		Type:      "hub_chat_message",
+		HangoutID: hubID,
+		From:      claims.FullNumber,
+		Payload: fiber.Map{
+			"id":          msgID,
+			"content":     strings.TrimSpace(input.Content),
+			"sender_name": senderName,
+			"sender_num":  claims.FullNumber,
+			"hangout_id":  hubID,
+			"created_at":  createdAt.Format(time.RFC3339),
+		},
+	})
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"id":          msgID,
+			"content":     input.Content,
+			"sender_name": senderName,
+			"sender_num":  claims.FullNumber,
+			"created_at":  createdAt.Format(time.RFC3339),
+		},
+	})
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/signaling_service.dart';
 import '../../theme/ios_theme.dart';
+import '../messages/chat_screen.dart';
 
 class HangoutScreen extends StatefulWidget {
   const HangoutScreen({super.key});
@@ -15,46 +16,35 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   String? _activeHubId;
   bool _isMuted = false;
   bool _isDeafened = false;
+  bool _loading = false;
 
-  final List<Map<String, dynamic>> _publicHubs = [
+  List<Map<String, dynamic>> _publicHubs = [
     {
       'id': 'pub_1',
       'name': 'Bangladesh Central Voice Lounge',
       'district': 'All Districts',
       'description': 'Open community audio hub for everyone across 64 districts',
-      'members': [
-        {'name': 'Zim (Admin)', 'number': '+1-3847291', 'isSpeaking': true, 'isMuted': false},
-        {'name': 'Rafiq', 'number': '+1-6860499', 'isSpeaking': false, 'isMuted': false},
-      ],
     },
     {
       'id': 'pub_2',
       'name': 'Dhaka Developers Hub',
       'district': 'Dhaka (+1)',
       'description': 'Voice chat for software engineers, designers & tech enthusiasts',
-      'members': [
-        {'name': 'Tanvir', 'number': '+1-2098412', 'isSpeaking': false, 'isMuted': true},
-      ],
     },
     {
       'id': 'pub_3',
       'name': 'Narsingdi Community Channel',
       'district': 'Narsingdi (+2)',
       'description': 'Local discussion & networking hub for Narsingdi district',
-      'members': <Map<String, dynamic>>[],
     },
   ];
 
-  final List<Map<String, dynamic>> _privateTables = [
+  List<Map<String, dynamic>> _privateTables = [
     {
       'id': 'priv_1',
       'name': 'Core Team Private Table',
-      'owner': 'Zim',
+      'owner': 'Zim Official',
       'description': 'Private audio lounge for confidential team discussions',
-      'members': [
-        {'name': 'Zim (Host)', 'number': '+1-3847291', 'isSpeaking': false, 'isMuted': false},
-      ],
-      'allowedNumbers': ['+1-3847291', '+1-6860499'],
     },
   ];
 
@@ -62,6 +52,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadHubs();
 
     // Listen for real-time private hub invites
     SignalingService.instance.messageStream.listen((msg) {
@@ -69,13 +60,11 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
         if (mounted) {
           final payload = msg['payload'];
           setState(() {
-            _privateTables.add({
+            _privateTables.insert(0, {
               'id': payload['table_id'],
               'name': payload['table_name'],
               'owner': payload['owner'],
               'description': 'Invited by ${payload['owner']}',
-              'members': <Map<String, dynamic>>[],
-              'allowedNumbers': <String>[],
             });
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -89,6 +78,28 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
     });
   }
 
+  Future<void> _loadHubs() async {
+    setState(() => _loading = true);
+    try {
+      final pubRes = await ApiService.instance.getPublicHubs();
+      if (pubRes['success'] == true && pubRes['data'] is List) {
+        final list = List<Map<String, dynamic>>.from(pubRes['data']);
+        if (list.isNotEmpty) {
+          _publicHubs = list;
+        }
+      }
+
+      final privRes = await ApiService.instance.getPrivateTables();
+      if (privRes['success'] == true && privRes['data'] is List) {
+        final list = List<Map<String, dynamic>>.from(privRes['data']);
+        if (list.isNotEmpty) {
+          _privateTables = list;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
   void _toggleJoin(String id) {
     setState(() {
       if (_activeHubId == id) {
@@ -99,6 +110,152 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
         SignalingService.instance.joinHangoutHub(id);
       }
     });
+  }
+
+  // Show Users Modal with Add to Contact option
+  void _showHubUsersModal(Map<String, dynamic> hub) async {
+    final hubId = hub['id'].toString();
+    final hubName = hub['name'] ?? 'Hub';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: IosTheme.cardDark,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: ApiService.instance.getHubMembers(hubId),
+          builder: (context, snapshot) {
+            final members = snapshot.data ?? [];
+            final isLoading = snapshot.connectionState == ConnectionState.waiting;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '$hubName • Members',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.white12),
+                  const SizedBox(height: 8),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 30),
+                      child: Center(child: CircularProgressIndicator(color: IosTheme.primaryGreen)),
+                    )
+                  else if (members.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 30),
+                      child: Center(
+                        child: Text('No other members currently in this hub.', style: TextStyle(color: Colors.white38)),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ValueListenableBuilder<Set<String>>(
+                        valueListenable: SignalingService.instance.onlineUsersNotifier,
+                        builder: (context, onlineUsers, child) {
+                          return ListView.separated(
+                            itemCount: members.length,
+                            separatorBuilder: (context, index) => const Divider(color: Colors.white10, height: 1),
+                            itemBuilder: (context, i) {
+                              final user = members[i];
+                              final userNum = user['full_number'] ?? '';
+                              final userName = user['display_name'] ?? 'IntraCom User';
+                              final district = user['district_name'] ?? '';
+                              final isOnline = onlineUsers.contains(userNum);
+
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: const Color(0xFF2C2C2E),
+                                      child: Text(
+                                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          color: isOnline ? IosTheme.primaryGreen : Colors.grey,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.black, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                title: Text(
+                                  userName,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 14),
+                                ),
+                                subtitle: Text(
+                                  '$userNum ${district.isNotEmpty ? '• $district' : ''}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+                                ),
+                                trailing: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2C2C2E),
+                                    foregroundColor: IosTheme.primaryGreen,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  ),
+                                  icon: const Icon(Icons.person_add_alt_1, size: 16),
+                                  label: const Text('Add to Contact', style: TextStyle(fontSize: 11)),
+                                  onPressed: () async {
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    await ApiService.instance.addContact(
+                                      name: userName,
+                                      number: userNum,
+                                      district: district.isNotEmpty ? district : 'IntraCom User',
+                                    );
+                                    if (mounted) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('Added $userName ($userNum) to your contacts!'),
+                                          backgroundColor: IosTheme.primaryGreen,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   // User submits a request to Admin to create a new Public Hub
@@ -162,6 +319,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                     backgroundColor: IosTheme.primaryGreen,
                   ),
                 );
+                _loadHubs();
               }
             },
             child: const Text('Submit Request', style: TextStyle(color: Colors.white)),
@@ -235,8 +393,6 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                       'name': tableData['name'] ?? nameCtrl.text.trim(),
                       'owner': tableData['owner_name'] ?? 'Me',
                       'description': 'Private lounge',
-                      'members': <Map<String, dynamic>>[],
-                      'allowedNumbers': memberNums,
                     });
                   });
                 }
@@ -246,6 +402,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                     backgroundColor: IosTheme.primaryGreen,
                   ),
                 );
+                _loadHubs();
               }
             },
             child: const Text('Create Table', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -258,9 +415,14 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Hangout Hubs'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white70),
+            onPressed: _loadHubs,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: IosTheme.primaryGreen,
@@ -296,7 +458,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                       children: [
                         Text('VOICE CONNECTED (RTC SFU)',
                             style: TextStyle(color: IosTheme.primaryGreen, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                        Text('Live Voice Channel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                        Text('Live Voice Channel Active', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
                       ],
                     ),
                   ),
@@ -317,16 +479,18 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
             ),
 
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // 1. PUBLIC HUBS TAB
-                _buildPublicHubsView(),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: IosTheme.primaryGreen))
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // 1. PUBLIC HUBS TAB
+                      _buildPublicHubsView(),
 
-                // 2. PRIVATE TABLES TAB
-                _buildPrivateTablesView(),
-              ],
-            ),
+                      // 2. PRIVATE TABLES TAB
+                      _buildPrivateTablesView(),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -409,8 +573,10 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
   }
 
   Widget _buildHubCard(Map<String, dynamic> hub, {required bool isPrivate}) {
-    final isConnected = _activeHubId == hub['id'];
-    final members = (hub['members'] as List<dynamic>?) ?? [];
+    final hubId = hub['id'].toString();
+    final isConnected = _activeHubId == hubId;
+    final name = hub['name'] ?? 'Hub';
+    final district = hub['district_name'] ?? hub['district'] ?? (isPrivate ? 'Private Table' : 'General');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -436,9 +602,9 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                 size: 20,
               ),
             ),
-            title: Text(hub['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
             subtitle: Text(
-              isPrivate ? 'Private Table • ${members.length} listening' : '${hub['district']} • ${members.length} listening',
+              district,
               style: const TextStyle(fontSize: 12, color: Colors.white54),
             ),
             trailing: ElevatedButton(
@@ -448,7 +614,7 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
-              onPressed: () => _toggleJoin(hub['id']),
+              onPressed: () => _toggleJoin(hubId),
               child: Text(isConnected ? 'Leave' : 'Join Voice'),
             ),
           ),
@@ -457,27 +623,58 @@ class _HangoutScreenState extends State<HangoutScreen> with SingleTickerProvider
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(hub['description'], style: const TextStyle(fontSize: 12, color: Colors.white70)),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
-          // Member chips
-          if (members.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: members.map((m) {
-                  final speaking = m['isSpeaking'] == true;
-                  return Chip(
-                    avatar: Icon(speaking ? Icons.graphic_eq : Icons.person, size: 14, color: Colors.white),
-                    label: Text(m['name'], style: TextStyle(fontSize: 11, color: speaking ? IosTheme.primaryGreen : Colors.white)),
-                    backgroundColor: Colors.black38,
-                    side: BorderSide(color: speaking ? IosTheme.primaryGreen : Colors.white10),
-                  );
-                }).toList(),
-              ),
+          // Clean Actions Row: "Users" button & "Chat" button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                // 1. "Users" button with member count & modal
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.people_outline, size: 18, color: IosTheme.accentBlue),
+                    label: const Text('Users', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    onPressed: () => _showHubUsersModal(hub),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // 2. "Chat" button with chat icon
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C2C2E),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.chat_bubble_outline, size: 18, color: IosTheme.primaryGreen),
+                    label: const Text('Chat', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            contactName: name,
+                            contactNumber: hubId,
+                            isHubChat: true,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 10),
         ],
       ),
     );

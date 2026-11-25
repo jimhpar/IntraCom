@@ -158,6 +158,106 @@ func AdminManualCreateUserHandler(c *fiber.Ctx) error {
 	return RegisterHandler(c) // Uses same district & 7-digit generator pipeline
 }
 
+// AdminUpdateUserInput represents fields an admin can update for any user
+type AdminUpdateUserInput struct {
+	DisplayName  *string `json:"display_name"`
+	Phone        *string `json:"phone"`
+	Email        *string `json:"email"`
+	FullNumber   *string `json:"full_number"`
+	Password     *string `json:"password"`
+	DistrictCode *int    `json:"district_code"`
+	IsAdmin      *bool   `json:"is_admin"`
+	IsSuspended  *bool   `json:"is_suspended"`
+}
+
+// PUT /api/v1/admin/users/:id - Admin updates any information of a user
+func AdminUpdateUserFullHandler(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	var input AdminUpdateUserInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Invalid request body"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Verify user exists
+	var currentNum string
+	err := db.Pool.QueryRow(ctx, "SELECT full_number FROM users WHERE id = $1", userID).Scan(&currentNum)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "User not found"})
+	}
+
+	// If FullNumber changed, ensure uniqueness
+	if input.FullNumber != nil && strings.TrimSpace(*input.FullNumber) != "" {
+		newNum := strings.TrimSpace(*input.FullNumber)
+		var conflictID string
+		err := db.Pool.QueryRow(ctx, "SELECT id FROM users WHERE full_number = $1 AND id != $2", newNum, userID).Scan(&conflictID)
+		if err == nil && conflictID != "" {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "IntraCom number is already taken"})
+		}
+		_, _ = db.Pool.Exec(ctx, "UPDATE users SET full_number = $1 WHERE id = $2", newNum, userID)
+	}
+
+	// If Phone changed, ensure uniqueness
+	if input.Phone != nil && strings.TrimSpace(*input.Phone) != "" {
+		newPhone := strings.TrimSpace(*input.Phone)
+		var conflictID string
+		err := db.Pool.QueryRow(ctx, "SELECT id FROM users WHERE phone = $1 AND id != $2", newPhone, userID).Scan(&conflictID)
+		if err == nil && conflictID != "" {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"success": false, "error": "Phone number is already taken"})
+		}
+		_, _ = db.Pool.Exec(ctx, "UPDATE users SET phone = $1 WHERE id = $2", newPhone, userID)
+	}
+
+	// Update DisplayName
+	if input.DisplayName != nil && strings.TrimSpace(*input.DisplayName) != "" {
+		_, _ = db.Pool.Exec(ctx, "UPDATE users SET display_name = $1 WHERE id = $2", strings.TrimSpace(*input.DisplayName), userID)
+	}
+
+	// Update Email
+	if input.Email != nil {
+		emailVal := strings.TrimSpace(strings.ToLower(*input.Email))
+		if emailVal == "" {
+			_, _ = db.Pool.Exec(ctx, "UPDATE users SET email = NULL WHERE id = $1", userID)
+		} else {
+			_, _ = db.Pool.Exec(ctx, "UPDATE users SET email = $1 WHERE id = $2", emailVal, userID)
+		}
+	}
+
+	// Update Password if provided
+	if input.Password != nil && strings.TrimSpace(*input.Password) != "" {
+		newHash, err := auth.HashPassword(strings.TrimSpace(*input.Password))
+		if err == nil {
+			_, _ = db.Pool.Exec(ctx, "UPDATE users SET password_hash = $1 WHERE id = $2", newHash, userID)
+		}
+	}
+
+	// Update District if provided
+	if input.DistrictCode != nil && *input.DistrictCode > 0 {
+		if d, ok := numbering.Districts[*input.DistrictCode]; ok {
+			_, _ = db.Pool.Exec(ctx, "UPDATE users SET district_code = $1, district_name = $2 WHERE id = $3", d.Code, d.NameEn, userID)
+		}
+	}
+
+	// Update IsAdmin
+	if input.IsAdmin != nil {
+		_, _ = db.Pool.Exec(ctx, "UPDATE users SET is_admin = $1 WHERE id = $2", *input.IsAdmin, userID)
+	}
+
+	// Update IsSuspended
+	if input.IsSuspended != nil {
+		_, _ = db.Pool.Exec(ctx, "UPDATE users SET is_suspended = $1 WHERE id = $2", *input.IsSuspended, userID)
+	}
+
+	_, _ = db.Pool.Exec(ctx, "UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1", userID)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "User details successfully updated by Administrator",
+	})
+}
+
 // PUT /api/v1/admin/users/:id/number - Admin customizes/updates a user's IntraCom number
 func AdminUpdateUserNumberHandler(c *fiber.Ctx) error {
 	userID := c.Params("id")
