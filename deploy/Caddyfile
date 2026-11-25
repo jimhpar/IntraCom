@@ -1,10 +1,9 @@
 {
-    email admin@intracom.local
+    email admin@asf.run
 }
 
-https://129.225.125.127, :443, :8080 {
-    tls /etc/caddy/server.crt /etc/caddy/server.key
-
+# Domain calling.asf.run - Automatic Real Public SSL (Let's Encrypt / ZeroSSL)
+calling.asf.run, calling.asf.run:8080, www.calling.asf.run {
     handle /api/* {
         reverse_proxy api:8080
     }
@@ -21,7 +20,10 @@ https://129.225.125.127, :443, :8080 {
     }
 }
 
-:80 {
+# Direct IP fallback with internal cert
+https://129.225.125.127:8080, :8080 {
+    tls /etc/caddy/server.crt /etc/caddy/server.key
+
     handle /api/* {
         reverse_proxy api:8080
     }
@@ -32,6 +34,8 @@ https://129.225.125.127, :443, :8080 {
         reverse_proxy api:8080
     }
     handle {
-        redir https://{host}:8080{uri} permanent
+        root * /srv/web
+        try_files {path} /index.html
+        file_server
     }
 }

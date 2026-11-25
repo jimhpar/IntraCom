@@ -31,6 +31,8 @@ func findUserByTarget(ctx context.Context, target string) (userID, fullNum, name
 		   OR ($2 != '' AND user_number = $2)
 		   OR ($2 != '' AND phone = $2)
 		   OR ($2 != '' AND REPLACE(REPLACE(full_number, '+', ''), '-', '') = $2)
+		   OR ($2 != '' AND full_number LIKE '%-' || $2)
+		   OR ($2 != '' AND REPLACE(REPLACE(full_number, '+', ''), '-', '') LIKE '%' || $2)
 		LIMIT 1
 	`
 	err = db.Pool.QueryRow(ctx, query, clean, digits).Scan(&userID, &fullNum, &name)

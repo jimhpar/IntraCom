@@ -29,42 +29,124 @@ class _DialerScreenState extends State<DialerScreen> {
     super.dispose();
   }
 
+  static const Map<int, String> _districtNames = {
+    1: 'Dhaka',
+    2: 'Narsingdi',
+    3: 'Brahmanbaria',
+    4: 'Kishoreganj',
+    5: 'Gazipur',
+    6: 'Manikganj',
+    7: 'Munshiganj',
+    8: 'Narayanganj',
+    9: 'Tangail',
+    10: 'Faridpur',
+    11: 'Gopalganj',
+    12: 'Madaripur',
+    13: 'Rajbari',
+    14: 'Shariatpur',
+    15: 'Chattogram',
+    16: 'Cumilla',
+    17: 'Chandpur',
+    18: "Cox's Bazar",
+    19: 'Feni',
+    20: 'Lakshmipur',
+    21: 'Noakhali',
+    22: 'Rangamati',
+    23: 'Khagrachhari',
+    24: 'Bandarban',
+    25: 'Rajshahi',
+    26: 'Naogaon',
+    27: 'Natore',
+    28: 'Chapainawabganj',
+    29: 'Pabna',
+    30: 'Bogura',
+    31: 'Joypurhat',
+    32: 'Sirajganj',
+    33: 'Khulna',
+    34: 'Bagerhat',
+    35: 'Satkhira',
+    36: 'Jessore',
+    37: 'Magura',
+    38: 'Narail',
+    39: 'Jhenaidah',
+    40: 'Kushtia',
+    41: 'Chuadanga',
+    42: 'Meherpur',
+    43: 'Barishal',
+    44: 'Patuakhali',
+    45: 'Bhola',
+    46: 'Pirojpur',
+    47: 'Jhalokati',
+    48: 'Barguna',
+    49: 'Sylhet',
+    50: 'Moulvibazar',
+    51: 'Habiganj',
+    52: 'Sunamganj',
+    53: 'Rangpur',
+    54: 'Dinajpur',
+    55: 'Thakurgaon',
+    56: 'Panchagarh',
+    57: 'Nilphamari',
+    58: 'Lalmonirhat',
+    59: 'Kurigram',
+    60: 'Gaibandha',
+    61: 'Mymensingh',
+    62: 'Jamalpur',
+    63: 'Sherpur',
+    64: 'Netrokona',
+  };
+
   /// Normalizes any raw input (with or without hyphen, with or without +) into standard call target
   String _normalizeCallNumber(String raw) {
     String s = raw.trim().replaceAll(' ', '');
     if (s.isEmpty) return s;
 
-    // If it's a mobile phone e.g. 017... or +88017...
+    // Mobile phones e.g. 017... or +88017...
     if (s.startsWith('01') || s.startsWith('+8801')) {
       return s;
     }
 
-    // If already in +X-XXXXXXX format
-    if (RegExp(r'^\+[1-9]-\d{7}$').hasMatch(s)) {
+    // 1. If already formatted with hyphen: +X-XXXXXXX or +XX-XXXXXXX or X-XXXXXXX or XX-XXXXXXX
+    final hyphenMatch = RegExp(r'^\+?([1-9][0-9]?)-(\d{7})$').firstMatch(s);
+    if (hyphenMatch != null) {
+      final code = hyphenMatch.group(1)!;
+      final num = hyphenMatch.group(2)!;
+      return '+$code-$num';
+    }
+
+    // 2. If starts with '+':
+    if (s.startsWith('+')) {
+      final digits = s.substring(1);
+      // If 8 digits total after '+': 1-digit code (1-9) + 7-digit number
+      if (digits.length == 8) {
+        return '+${digits[0]}-${digits.substring(1)}';
+      }
+      // If 9 digits total after '+': 2-digit code (10-64) + 7-digit number (e.g. +161234567 -> +16-1234567)
+      if (digits.length == 9) {
+        return '+${digits.substring(0, 2)}-${digits.substring(2)}';
+      }
+      // If 7 digits after '+': default to Dhaka (+1)
+      if (digits.length == 7) {
+        return '+1-$digits';
+      }
       return s;
     }
 
-    // If in X-XXXXXXX format
-    if (RegExp(r'^[1-9]-\d{7}$').hasMatch(s)) {
-      return '+$s';
-    }
-
-    // If in +XXXXXXXX format (8 digits after +)
-    if (RegExp(r'^\+[1-9]\d{7}$').hasMatch(s)) {
-      return '${s.substring(0, 2)}-${s.substring(2)}';
-    }
-
-    // If 8 digits e.g. 11111111 or 16860499
-    if (RegExp(r'^[1-9]\d{7}$').hasMatch(s)) {
-      return '+${s[0]}-${s.substring(1)}';
-    }
-
-    // If 7 digits e.g. 1111111 or 6860499 -> default to Area +1 (Dhaka)
-    if (RegExp(r'^\d{7}$').hasMatch(s)) {
+    // 3. If purely digits without '+':
+    // 7 digits: e.g. 1111111 or 6860499 -> default to Dhaka (+1)
+    if (s.length == 7 && RegExp(r'^\d{7}$').hasMatch(s)) {
       return '+1-$s';
     }
+    // 8 digits: 1-digit code (1-9) + 7-digit number (e.g. 11111111 -> +1-1111111)
+    if (s.length == 8 && RegExp(r'^[1-9]\d{7}$').hasMatch(s)) {
+      return '+${s[0]}-${s.substring(1)}';
+    }
+    // 9 digits: 2-digit code (10-64) + 7-digit number (e.g. 161234567 -> +16-1234567, 257871466 -> +25-7871466)
+    if (s.length == 9 && RegExp(r'^[1-6][0-9]\d{7}$').hasMatch(s)) {
+      return '+${s.substring(0, 2)}-${s.substring(2)}';
+    }
 
-    // If starts with +1... etc.
+    // Fallback: prepend + if missing
     if (!s.startsWith('+') && !s.startsWith('0')) {
       return '+$s';
     }
@@ -73,21 +155,36 @@ class _DialerScreenState extends State<DialerScreen> {
   }
 
   String _getFormattedDisplayHint(String text) {
-    final norm = _normalizeCallNumber(text);
-    if (norm.isEmpty) {
-      return 'Type number or use keypad (e.g. 1111111 or 16860499)';
+    final s = text.trim().replaceAll(' ', '');
+    if (s.isEmpty) {
+      return 'Type number or use keypad (e.g. 1111111 or +16-1234567)';
     }
 
-    if (norm.startsWith('+1-')) {
-      return 'Dhaka Region ($norm)';
-    } else if (norm.startsWith('+2-')) {
-      return 'Narsingdi Region ($norm)';
-    } else if (norm.startsWith('+3-')) {
-      return 'Brahmanbaria Region ($norm)';
-    } else if (norm.startsWith('+')) {
-      return 'Target: $norm';
+    final norm = _normalizeCallNumber(s);
+
+    // If normalized into standard +Code-Number format
+    final match = RegExp(r'^\+([1-9][0-9]?)-(\d{7})$').firstMatch(norm);
+    if (match != null) {
+      final code = int.tryParse(match.group(1)!) ?? 1;
+      final district = _districtNames[code] ?? 'Region $code';
+      return '$district Region ($norm)';
     }
-    return 'Calling: $norm';
+
+    // Live hint while typing partial numbers
+    if (s.startsWith('+')) {
+      final codeStr = s.replaceAll('+', '').split('-').first;
+      final code = int.tryParse(codeStr);
+      if (code != null && _districtNames.containsKey(code)) {
+        return '${_districtNames[code]} Region (+${code}...)';
+      }
+    } else if (s.length <= 2) {
+      final code = int.tryParse(s);
+      if (code != null && _districtNames.containsKey(code)) {
+        return '${_districtNames[code]} Region (+${code}...)';
+      }
+    }
+
+    return 'Target: $norm';
   }
 
   void _insertDigit(String digit) {
