@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -174,8 +175,10 @@ type AdminUpdateUserInput struct {
 func AdminUpdateUserFullHandler(c *fiber.Ctx) error {
 	userID := c.Params("id")
 	var input AdminUpdateUserInput
-	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Invalid request body"})
+	if err := json.Unmarshal(c.Body(), &input); err != nil {
+		if err2 := c.BodyParser(&input); err2 != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "Invalid request body"})
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
