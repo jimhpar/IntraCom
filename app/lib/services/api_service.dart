@@ -377,8 +377,12 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getDirectChat(String peerNumber) async {
     try {
       final res = await _dio.get('/api/v1/messages/chat/$peerNumber');
-      if (res.data != null && res.data['messages'] is List) {
-        return List<Map<String, dynamic>>.from(res.data['messages']);
+      if (res.data != null) {
+        if (res.data['data'] != null && res.data['data']['messages'] is List) {
+          return List<Map<String, dynamic>>.from(res.data['data']['messages']);
+        } else if (res.data['messages'] is List) {
+          return List<Map<String, dynamic>>.from(res.data['messages']);
+        }
       }
       return [];
     } catch (_) {

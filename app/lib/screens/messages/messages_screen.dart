@@ -276,7 +276,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       final name = chat['peer_name'] ?? chat['peer_number'] ?? 'User';
                       final number = chat['peer_number'] ?? '';
                       final lastMsg = chat['last_message'] ?? '';
-                      final timeStr = _formatTime(chat['last_message_at']);
+                      final timeStr = _formatTime(chat['last_message_time'] ?? chat['last_message_at']);
                       final unreadCount = chat['unread_count'] is int ? chat['unread_count'] as int : 0;
 
                       return Dismissible(
