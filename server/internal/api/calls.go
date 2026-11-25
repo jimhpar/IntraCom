@@ -140,7 +140,7 @@ func ListCallHistoryHandler(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	var history []fiber.Map
+	history := make([]fiber.Map, 0)
 	for rows.Next() {
 		var (
 			id, callerID, callerNum, callerName, callerDist   string
