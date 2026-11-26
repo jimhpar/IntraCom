@@ -122,18 +122,7 @@ func (h *Hub) Run() {
 			}
 
 		case message := <-h.broadcast:
-			h.mu.RLock()
-			for _, clientMap := range h.clients {
-				for client := range clientMap {
-					select {
-					case client.Send <- message:
-					default:
-						close(client.Send)
-						delete(clientMap, client)
-					}
-				}
-			}
-			h.mu.RUnlock()
+			h.broadcastBytes(message)
 		}
 	}
 }
@@ -318,6 +307,7 @@ func (h *Hub) RouteMessage(msg SignalMessage) {
 
 	// Hangout Hub Multi-party Audio Signal
 	if msg.HangoutID != "" {
+		h.mu.RLock()
 		members, ok := h.hangoutHubs[msg.HangoutID]
 		if ok {
 			data, err := json.Marshal(msg)
@@ -332,6 +322,7 @@ func (h *Hub) RouteMessage(msg SignalMessage) {
 				}
 			}
 		}
+		h.mu.RUnlock()
 	}
 }
 
@@ -401,6 +392,19 @@ func (h *Hub) notifyHangoutMemberLeft(hangoutID, fullNumber string) {
 	}
 }
 
+func (h *Hub) broadcastBytes(bytes []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, clientMap := range h.clients {
+		for client := range clientMap {
+			select {
+			case client.Send <- bytes:
+			default:
+			}
+		}
+	}
+}
+
 func (h *Hub) broadcastPresence(fullNumber, status string) {
 	msg := SignalMessage{
 		Type: "presence_update",
@@ -410,6 +414,9 @@ func (h *Hub) broadcastPresence(fullNumber, status string) {
 			"status": status,
 		},
 	}
-	bytes, _ := json.Marshal(msg)
-	h.broadcast <- bytes
+	bytes, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	h.broadcastBytes(bytes)
 }

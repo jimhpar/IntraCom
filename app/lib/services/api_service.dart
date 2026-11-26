@@ -361,12 +361,57 @@ class ApiService {
     }
   }
 
+  // Real-time total unread messages count for Navbar Red Dot
+  final ValueNotifier<int> unreadMessagesNotifier = ValueNotifier<int>(0);
+
+  // Triggered whenever a call ends or Recents tab is opened so Call History updates immediately
+  final ValueNotifier<int> callHistoryRefreshNotifier = ValueNotifier<int>(0);
+
+  // Fetch ephemeral TURN + STUN ICE servers for ultra-reliable low-latency WebRTC
+  Future<List<Map<String, dynamic>>> getIceServers() async {
+    final base = <Map<String, dynamic>>[
+      {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
+      {'urls': 'stun:129.225.125.127:3478'},
+    ];
+    try {
+      final res = await _dio.get(
+        '/api/v1/turn/credentials',
+        options: Options(receiveTimeout: const Duration(seconds: 3)),
+      );
+      if (res.data['success'] == true && res.data['data'] is Map) {
+        final d = res.data['data'] as Map;
+        final urls = d['urls'];
+        final username = d['username'];
+        final credential = d['credential'];
+        if (urls != null && username != null && credential != null) {
+          return [
+            {'urls': 'stun:stun.l.google.com:19302'},
+            {
+              'urls': urls,
+              'username': username,
+              'credential': credential,
+            },
+          ];
+        }
+      }
+    } catch (_) {}
+    return base;
+  }
+
   // Direct 1-on-1 Messages APIs
   Future<List<Map<String, dynamic>>> getConversations() async {
     try {
       final res = await _dio.get('/api/v1/messages/conversations');
       if (res.data['success'] == true && res.data['data'] is List) {
-        return List<Map<String, dynamic>>.from(res.data['data']);
+        final list = List<Map<String, dynamic>>.from(res.data['data']);
+        int totalUnread = 0;
+        for (final c in list) {
+          final u = c['unread_count'];
+          if (u is int) totalUnread += u;
+        }
+        unreadMessagesNotifier.value = totalUnread;
+        return list;
       }
       return [];
     } catch (_) {

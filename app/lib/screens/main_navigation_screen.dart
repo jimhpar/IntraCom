@@ -9,6 +9,8 @@ import 'hangout/hangout_screen.dart';
 import 'profile/profile_screen.dart';
 import 'calling/in_call_screen.dart';
 import 'messages/chat_screen.dart';
+import '../services/api_service.dart';
+import '../services/browser_alert_service.dart';
 import '../services/signaling_service.dart';
 import '../theme/ios_theme.dart';
 
@@ -39,6 +41,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _listenForIncomingEvents();
+    // Initial fetch to populate Navbar unread red dot immediately
+    ApiService.instance.getConversations();
   }
 
   void _listenForIncomingEvents() {
@@ -48,12 +52,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       final type = msg['type'];
 
       if (type == 'call_offer' && !_isIncomingCallVisible) {
-        final callerNumber = msg['from'] ?? 'Unknown Caller';
-        final callerName = msg['caller_name'] ?? 'IntraCom User';
+        final callerNumber = (msg['from'] ?? 'Unknown Caller').toString();
+        final callerName = (msg['caller_name'] ?? 'IntraCom User').toString();
         final isVideo = msg['call_type'] == 'video';
+        final offerPayload = msg['payload'];
 
-        _showIncomingCallDialog(callerNumber, callerName, isVideo);
+        BrowserAlertService.playRingtone();
+        BrowserAlertService.startTabFlash('📞 Incoming Call: $callerName');
+        _showIncomingCallDialog(callerNumber, callerName, isVideo, offerPayload);
       } else if (type == 'call_hangup' && _isIncomingCallVisible) {
+        BrowserAlertService.stopRingtone();
+        BrowserAlertService.stopTabFlash();
         if (_incomingCallDialogCtx != null && mounted) {
           Navigator.of(_incomingCallDialogCtx!).pop();
           _incomingCallDialogCtx = null;
@@ -61,11 +70,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         }
       } else if (type == 'chat_message') {
         final payload = msg['payload'] ?? {};
-        final text = payload['content'] ?? payload['text'] ?? msg['content'] ?? '';
-        final senderName = msg['caller_name'] ?? payload['sender_name'] ?? msg['from'] ?? 'User';
+        final text = (payload['content'] ?? payload['text'] ?? msg['content'] ?? '').toString();
+        final senderName = (msg['caller_name'] ?? payload['sender_name'] ?? msg['from'] ?? 'User').toString();
         final senderNum = (msg['from'] ?? payload['sender_num'] ?? '').toString();
 
-        if (text.isNotEmpty) {
+        // Refresh unread counts for Navbar Red Dot & Chat Threads
+        ApiService.instance.getConversations();
+
+        final activePeer = SignalingService.instance.activeChatPeer ?? '';
+        final cleanActive = activePeer.replaceAll('+', '').replaceAll('-', '');
+        final cleanSender = senderNum.replaceAll('+', '').replaceAll('-', '');
+        final isSameChatOpen = cleanActive.isNotEmpty &&
+            (cleanActive == cleanSender ||
+                (cleanActive.length == 7 && cleanSender.endsWith(cleanActive)) ||
+                (cleanSender.length == 7 && cleanActive.endsWith(cleanSender)));
+
+        if (text.isNotEmpty && !isSameChatOpen) {
+          BrowserAlertService.playMessageSound();
+          BrowserAlertService.startTabFlash('💬 $senderName: $text');
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: const Color(0xFF1C1C1E),
@@ -110,120 +133,154 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     });
   }
 
-  void _showIncomingCallDialog(String callerNumber, String callerName, bool isVideo) {
+  void _showIncomingCallDialog(String callerNumber, String callerName, bool isVideo, dynamic offerPayload) {
     _isIncomingCallVisible = true;
 
-    showGeneralDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black87,
-      pageBuilder: (ctx, anim1, anim2) {
+      barrierColor: Colors.black54,
+      builder: (ctx) {
         _incomingCallDialogCtx = ctx;
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SizedBox(height: 40),
-                Column(
-                  children: [
-                    Text(
-                      isVideo ? 'Incoming Video Call' : 'Incoming IntraCom Call',
-                      style: const TextStyle(fontSize: 16, color: IosTheme.primaryGreen, fontWeight: FontWeight.bold, letterSpacing: 1),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      callerName,
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white12,
-                        borderRadius: BorderRadius.circular(14),
+        return Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 24, left: 16, right: 16),
+            child: Material(
+              color: Colors.transparent,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white12, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       ),
-                      child: Text(
-                        callerNumber,
-                        style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 1),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    const CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Color(0xFF2C2C2E),
-                      child: Icon(Icons.person, size: 64, color: Colors.white70),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 50, left: 40, right: 40),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Decline button
-                      Column(
+                      Row(
                         children: [
-                          GestureDetector(
-                            onTap: () {
-                              _isIncomingCallVisible = false;
-                              SignalingService.instance.sendHangup(callerNumber);
-                              Navigator.pop(ctx);
-                            },
-                            child: Container(
-                              width: 72,
-                              height: 72,
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.call_end, size: 36, color: Colors.white),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: IosTheme.primaryGreen.withValues(alpha: 0.18),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isVideo ? CupertinoIcons.videocam_fill : CupertinoIcons.phone_fill,
+                              color: IosTheme.primaryGreen,
+                              size: 24,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('Decline', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        ],
-                      ),
-                      // Accept button
-                      Column(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              _isIncomingCallVisible = false;
-                              SignalingService.instance.sendCallAnswer(callerNumber, {'type': 'answer'});
-                              Navigator.pop(ctx);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => InCallScreen(
-                                    targetNumber: callerNumber,
-                                    targetName: callerName,
-                                    isVideo: isVideo,
-                                    isIncoming: true,
-                                    initialConnected: true,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isVideo ? 'Incoming Video Call' : 'Incoming IntraCom Call',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: IosTheme.primaryGreen,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              );
-                            },
-                            child: Container(
-                              width: 72,
-                              height: 72,
-                              decoration: const BoxDecoration(
-                                color: IosTheme.primaryGreen,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.call, size: 36, color: Colors.white),
+                                const SizedBox(height: 2),
+                                Text(
+                                  callerName,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  callerNumber,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white60,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text('Accept', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFF3B30),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              icon: const Icon(Icons.call_end, size: 18),
+                              label: const Text('Decline', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                _isIncomingCallVisible = false;
+                                BrowserAlertService.stopRingtone();
+                                BrowserAlertService.stopTabFlash();
+                                SignalingService.instance.sendHangup(callerNumber);
+                                Navigator.pop(ctx);
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: IosTheme.primaryGreen,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              icon: const Icon(Icons.call, size: 18),
+                              label: const Text('Accept', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                _isIncomingCallVisible = false;
+                                BrowserAlertService.stopRingtone();
+                                BrowserAlertService.stopTabFlash();
+                                Navigator.pop(ctx);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => InCallScreen(
+                                      targetNumber: callerNumber,
+                                      targetName: callerName,
+                                      isVideo: isVideo,
+                                      isIncoming: true,
+                                      initialConnected: true,
+                                      remoteOffer: offerPayload,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -231,6 +288,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ).then((_) {
       _isIncomingCallVisible = false;
       _incomingCallDialogCtx = null;
+      BrowserAlertService.stopRingtone();
+      BrowserAlertService.stopTabFlash();
     });
   }
 
@@ -238,6 +297,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void dispose() {
     _signalingSub?.cancel();
     super.dispose();
+  }
+
+  Widget _buildMessagesNavIcon(bool active) {
+    return ValueListenableBuilder<int>(
+      valueListenable: ApiService.instance.unreadMessagesNotifier,
+      builder: (context, unreadCount, _) {
+        final icon = Icon(active ? CupertinoIcons.chat_bubble_2_fill : CupertinoIcons.chat_bubble_2);
+        if (unreadCount <= 0) return icon;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            icon,
+            Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF3B30),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -250,34 +342,39 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          if (index == 1) {
+            ApiService.instance.callHistoryRefreshNotifier.value++;
+          }
+        },
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.person_2),
             activeIcon: Icon(CupertinoIcons.person_2_fill),
             label: 'Contacts',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.clock),
             activeIcon: Icon(CupertinoIcons.clock_fill),
             label: 'Recents',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.circle_grid_3x3),
             activeIcon: Icon(CupertinoIcons.circle_grid_3x3_fill),
             label: 'Keypad',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.chat_bubble_2),
-            activeIcon: Icon(CupertinoIcons.chat_bubble_2_fill),
+            icon: _buildMessagesNavIcon(false),
+            activeIcon: _buildMessagesNavIcon(true),
             label: 'Messages',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.speaker_2),
             activeIcon: Icon(CupertinoIcons.speaker_2_fill),
             label: 'Hangout',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.person_crop_circle),
             activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
             label: 'Profile',

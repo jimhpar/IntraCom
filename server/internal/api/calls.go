@@ -2,6 +2,11 @@ package api
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base64"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -247,5 +252,39 @@ func DeleteCallLogHandler(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Call log deleted",
+	})
+}
+
+// GET /api/v1/turn/credentials - Ephemeral HMAC-SHA1 TURN credentials for WebRTC
+func GetTurnCredentialsHandler(c *fiber.Ctx) error {
+	claims, ok := c.Locals("user").(*auth.JWTClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "Unauthorized"})
+	}
+
+	secret := os.Getenv("COTURN_SECRET")
+	if secret == "" {
+		secret = "coturn-secret-shared-key-2026"
+	}
+
+	expiry := time.Now().Add(24 * time.Hour).Unix()
+	username := fmt.Sprintf("%d:%s", expiry, claims.UserID)
+
+	mac := hmac.New(sha1.New, []byte(secret))
+	mac.Write([]byte(username))
+	credential := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"username":   username,
+			"credential": credential,
+			"ttl":        86400,
+			"urls": []string{
+				"stun:129.225.125.127:3478",
+				"turn:129.225.125.127:3478?transport=udp",
+				"turn:129.225.125.127:3478?transport=tcp",
+			},
+		},
 	})
 }

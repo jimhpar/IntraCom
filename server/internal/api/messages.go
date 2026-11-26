@@ -85,7 +85,15 @@ func ListConversationsHandler(c *fiber.Ctx) error {
 			u.district_name as peer_district,
 			COALESCE(m.content, '') as last_message,
 			COALESCE(m.created_at, c.last_message_at) as last_message_time,
-			COALESCE(m.sender_id::text, '') as last_sender_id
+			COALESCE(m.sender_id::text, '') as last_sender_id,
+			(
+				SELECT COUNT(*)
+				FROM messages um
+				WHERE um.conversation_id = c.id
+				  AND um.is_deleted = FALSE
+				  AND um.sender_id != $1
+				  AND um.created_at > COALESCE(my_m.last_read_at, '1970-01-01'::timestamptz)
+			) as unread_count
 		FROM conversations c
 		JOIN conversation_members my_m ON c.id = my_m.conversation_id AND my_m.user_id = $1
 		JOIN conversation_members peer_m ON c.id = peer_m.conversation_id AND peer_m.user_id != $1
@@ -113,14 +121,15 @@ func ListConversationsHandler(c *fiber.Ctx) error {
 		onlineSet[num] = true
 	}
 
-	var results []fiber.Map
+	results := make([]fiber.Map, 0)
 	for rows.Next() {
 		var (
 			convID, peerID, peerNum, peerName, peerDistrict string
 			lastMsg, lastSenderID                           string
 			lastMsgTime                                     time.Time
+			unreadCount                                     int
 		)
-		if err := rows.Scan(&convID, &peerID, &peerNum, &peerName, &peerDistrict, &lastMsg, &lastMsgTime, &lastSenderID); err == nil {
+		if err := rows.Scan(&convID, &peerID, &peerNum, &peerName, &peerDistrict, &lastMsg, &lastMsgTime, &lastSenderID, &unreadCount); err == nil {
 			isOnline := onlineSet[peerNum]
 			results = append(results, fiber.Map{
 				"conversation_id":   convID,
@@ -132,6 +141,7 @@ func ListConversationsHandler(c *fiber.Ctx) error {
 				"last_message_time": lastMsgTime.Format(time.RFC3339),
 				"is_me_last":        lastSenderID == claims.UserID,
 				"is_online":         isOnline,
+				"unread_count":      unreadCount,
 			})
 		}
 	}
@@ -162,6 +172,9 @@ func GetChatMessagesHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to access conversation"})
 	}
+
+	// Mark conversation as read for current user
+	_, _ = db.Pool.Exec(ctx, "UPDATE conversation_members SET last_read_at = CURRENT_TIMESTAMP WHERE conversation_id = $1 AND user_id = $2", convID, claims.UserID)
 
 	query := `
 		SELECT m.id, m.sender_id, m.content, m.created_at, u.display_name, u.full_number
@@ -235,6 +248,9 @@ func SendMessageHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"success": false, "error": "Failed to access conversation"})
 	}
+
+	// Mark conversation as read for current user
+	_, _ = db.Pool.Exec(ctx, "UPDATE conversation_members SET last_read_at = CURRENT_TIMESTAMP WHERE conversation_id = $1 AND user_id = $2", convID, claims.UserID)
 
 	var msgID string
 	var createdAt time.Time

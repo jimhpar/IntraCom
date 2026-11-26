@@ -21,6 +21,38 @@ class SignalingService {
   final ValueNotifier<Set<String>> onlineUsersNotifier = ValueNotifier<Set<String>>({});
   bool isOnline(String number) => onlineUsersNotifier.value.contains(number);
 
+  // Currently open chat peer (to suppress duplicate sound/banner when already reading that chat)
+  String? activeChatPeer;
+
+  // Buffer early ICE candidates arriving before InCallScreen mounts on Callee
+  final Map<String, List<Map<String, dynamic>>> _bufferedIce = {};
+
+  String _cleanNum(String s) => s.replaceAll('+', '').replaceAll('-', '').trim();
+
+  bool _numsMatch(String a, String b) {
+    final ca = _cleanNum(a);
+    final cb = _cleanNum(b);
+    if (ca.isEmpty || cb.isEmpty) return false;
+    return ca == cb ||
+        (ca.length == 7 && cb.endsWith(ca)) ||
+        (cb.length == 7 && ca.endsWith(cb));
+  }
+
+  List<Map<String, dynamic>> consumeBufferedIce(String peerNumber) {
+    final matched = <Map<String, dynamic>>[];
+    final keysToRemove = <String>[];
+    _bufferedIce.forEach((key, list) {
+      if (_numsMatch(key, peerNumber)) {
+        matched.addAll(list);
+        keysToRemove.add(key);
+      }
+    });
+    for (final k in keysToRemove) {
+      _bufferedIce.remove(k);
+    }
+    return matched;
+  }
+
   Timer? _heartbeatTimer;
 
   void _startHeartbeat() {
@@ -47,6 +79,14 @@ class SignalingService {
         onlineUsersNotifier.value = list.toSet();
       }
     });
+
+    if (_channel != null) {
+      try {
+        _channel!.sink.close();
+      } catch (_) {}
+      _channel = null;
+      _isConnected = false;
+    }
 
     final uri = Uri.parse('${ApiService.wsUrl}?token=$token');
     try {
@@ -79,6 +119,20 @@ class SignalingService {
                   current.remove(num);
                 }
                 onlineUsersNotifier.value = current;
+              }
+            } else if (type == 'call_ice') {
+              final from = (decoded['from'] ?? '').toString();
+              final payload = decoded['payload'];
+              if (from.isNotEmpty && payload is Map) {
+                final cleanKey = _cleanNum(from);
+                _bufferedIce.putIfAbsent(cleanKey, () => []).add(
+                  Map<String, dynamic>.from(payload),
+                );
+              }
+            } else if (type == 'call_hangup' || type == 'call_reject') {
+              final from = (decoded['from'] ?? '').toString();
+              if (from.isNotEmpty) {
+                _bufferedIce.removeWhere((k, _) => _numsMatch(k, from));
               }
             }
 

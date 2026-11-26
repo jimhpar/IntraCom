@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../services/signaling_service.dart';
 import '../../theme/ios_theme.dart';
 import '../calling/in_call_screen.dart';
 
@@ -15,15 +17,42 @@ class _CallHistoryScreenState extends State<CallHistoryScreen> {
   List<Map<String, dynamic>> _allCalls = [];
   bool _loading = true;
   int _selectedSegment = 0; // 0 = All, 1 = Missed
+  StreamSubscription? _signalSub;
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    ApiService.instance.callHistoryRefreshNotifier.addListener(_onRefreshSignal);
+    _signalSub = SignalingService.instance.messageStream.listen((msg) {
+      final type = msg['type'];
+      if (type == 'call_offer' ||
+          type == 'call_answer' ||
+          type == 'call_hangup' ||
+          type == 'call_reject' ||
+          type == 'call_unavailable') {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) _loadHistory(silent: true);
+        });
+      }
+    });
   }
 
-  Future<void> _loadHistory() async {
-    setState(() => _loading = true);
+  void _onRefreshSignal() {
+    if (mounted) _loadHistory(silent: true);
+  }
+
+  @override
+  void dispose() {
+    ApiService.instance.callHistoryRefreshNotifier.removeListener(_onRefreshSignal);
+    _signalSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadHistory({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _loading = true);
+    }
     final list = await ApiService.instance.getCallHistory();
     if (mounted) {
       setState(() {

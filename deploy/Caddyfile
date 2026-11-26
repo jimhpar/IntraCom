@@ -4,6 +4,8 @@
 
 # Domain calling.asf.run - Automatic Real Public SSL (Let's Encrypt / ZeroSSL)
 calling.asf.run, www.calling.asf.run {
+    encode zstd gzip
+
     handle /api/* {
         reverse_proxy api:8080
     }
@@ -13,16 +15,29 @@ calling.asf.run, www.calling.asf.run {
     handle /health {
         reverse_proxy api:8080
     }
+
+    # Static web app files
     handle {
         root * /srv/web
         try_files {path} /index.html
-        file_server
+        file_server {
+            precompressed zstd gzip
+        }
+
+        # Don't cache index.html so users always get the latest bootstrap
+        @index path /index.html /
+        header @index Cache-Control "no-cache, no-store, must-revalidate"
+
+        # Cache static JS, wasm, and fonts
+        @static path *.js *.wasm *.png *.svg *.ttf *.otf *.woff2 *.json
+        header @static Cache-Control "public, max-age=86400, stale-while-revalidate=604800"
     }
 }
 
 # Direct IP and port 8080 fallback with self-signed certificate
 :8080 {
     tls /etc/caddy/server.crt /etc/caddy/server.key
+    encode zstd gzip
 
     handle /api/* {
         reverse_proxy api:8080

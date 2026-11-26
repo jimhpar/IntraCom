@@ -33,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    SignalingService.instance.activeChatPeer = widget.contactNumber;
     _loadMessages();
 
     // 1. Live background poller every 2 seconds for instantaneous syncing
@@ -105,6 +106,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    if (SignalingService.instance.activeChatPeer == widget.contactNumber) {
+      SignalingService.instance.activeChatPeer = null;
+    }
     _syncTimer?.cancel();
     _signalSub?.cancel();
     _msgCtrl.dispose();

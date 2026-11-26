@@ -308,11 +308,18 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: Colors.black,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: Colors.white12),
                         ),
-                        child: const Icon(Icons.phone_in_talk_rounded, color: IosTheme.primaryGreen, size: 34),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(17),
+                          child: Image.asset(
+                            'assets/icons/app_logo.png',
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       const Text(

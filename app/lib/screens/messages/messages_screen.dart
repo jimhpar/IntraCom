@@ -127,7 +127,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final primaryTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
     final secondaryTextColor = isDark ? Colors.white54 : const Color(0xFF8E8E93);
     final numberCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -138,33 +137,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
           'Start New Message',
           style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: numberCtrl,
-              style: TextStyle(color: primaryTextColor),
-              decoration: InputDecoration(
-                labelText: 'IntraCom Number or Mobile',
-                labelStyle: TextStyle(color: secondaryTextColor),
-                hintText: 'e.g. 1111111 or +1-6860499',
-                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameCtrl,
-              style: TextStyle(color: primaryTextColor),
-              decoration: InputDecoration(
-                labelText: 'Name (Optional)',
-                labelStyle: TextStyle(color: secondaryTextColor),
-                hintText: 'e.g. Rafiq',
-                hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
+        content: TextField(
+          controller: numberCtrl,
+          autofocus: true,
+          style: TextStyle(color: primaryTextColor),
+          decoration: InputDecoration(
+            labelText: 'IntraCom Number or Mobile',
+            labelStyle: TextStyle(color: secondaryTextColor),
+            hintText: 'e.g. 1111111 or +1-6860499',
+            hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+            border: const OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
@@ -177,12 +160,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
               final raw = numberCtrl.text.trim();
               if (raw.isNotEmpty) {
                 Navigator.pop(ctx);
-                final name = nameCtrl.text.trim().isEmpty ? raw : nameCtrl.text.trim();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => ChatScreen(
-                      contactName: name,
+                      contactName: raw,
                       contactNumber: raw,
                     ),
                   ),
@@ -329,11 +311,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Text(
+                                Text(
                                 timeStr,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: unreadCount > 0 ? IosTheme.accentBlue : secondaryTextColor,
+                                  color: unreadCount > 0 ? const Color(0xFFFF3B30) : secondaryTextColor,
                                   fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
@@ -356,10 +338,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               if (unreadCount > 0)
                                 Container(
                                   margin: const EdgeInsets.only(left: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: const BoxDecoration(
-                                    color: IosTheme.accentBlue,
-                                    shape: BoxShape.circle,
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF3B30),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     unreadCount.toString(),
